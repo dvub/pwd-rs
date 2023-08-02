@@ -25,9 +25,9 @@ pub enum Commands {
 }
 #[derive(Args)]
 pub struct GetArgs {
+    /// The password name to search for
     #[arg(short, long)]
     pub name: String,
-
 }
 
 #[derive(Args)]
@@ -41,26 +41,31 @@ pub struct AddArgs {
     /// Username
     #[arg(short, long)]
     pub username: Option<String>,
-    /// Notes
+    /// Additional notes
     #[arg(short = 't', long)]
     pub notes: Option<String>,
+    
     #[command(subcommand)]
-    pub password_type: PasswordTypes,
+    pub password_type: Option<PasswordTypes>,
 }
 
 
 #[derive(Subcommand)]
 pub enum PasswordTypes {
-    /// Manually type a password
+    /// Manually type a password 
     Manual(ManualArgs),
-    /// Automatically generate a strong password
+    /// Automatically generate a strong password (recommended)
     Auto(AutoArgs),
 }
 #[derive(Args)]
 pub struct ManualArgs {
-
+    /// Password to use
+    #[arg(short, long)]
+    password: String,
 }
 #[derive(Args)]
 pub struct AutoArgs {
-    
+    /// Password length, max 32 characters
+    #[arg(short, long, default_value_t = 10)]
+    length: usize,
 }

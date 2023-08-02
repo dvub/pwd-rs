@@ -8,8 +8,8 @@ edition = "2021"
 [dependencies]
 sha2="0.10.7"
 aes-gcm="0.10.2"
-sqlite="0.31.0"
-block-padding="0.3.3"
+diesel = { version = "2.1.0", features = ["sqlite"] }
+dotenvy = "0.15"
 hex-literal="0.4.1"
 pbkdf2="0.12.2"
 clap = { version = "4.3.19", features = ["derive"] }
