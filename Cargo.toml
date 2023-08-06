@@ -9,6 +9,7 @@ edition = "2021"
 sha2="0.10.7"
 aes-gcm="0.10.2"
 diesel = { version = "2.1.0", features = ["sqlite"] }
+diesel_migrations = "2.1.0"
 dotenvy = "0.15"
 hex-literal="0.4.1"
 pbkdf2="0.12.2"
