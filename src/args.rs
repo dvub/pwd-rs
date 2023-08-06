@@ -5,24 +5,25 @@ use clap::{Args, Parser, Subcommand};
 #[command(author = "dvub <dvubdevs@gmail.com>")]
 #[command(version = "1.0.0")]
 #[command(about = "Client-side password management/generator CLI tool built with Rust.", long_about = None)]
+
 pub struct PwdArgs {
     /// Command to run
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: PasswordCommands,
+
     /// Master password
-    #[arg(short, long)]
+    #[arg(short = 'P', long)]
     pub master_password: String,
 }
-
 #[derive(Subcommand)]
-pub enum Commands {
-    /// Create a new password or note
+pub enum PasswordCommands {
+    /// Add a new password
     Add(AddArgs),
-    /// Read an existing password from database
+
+    /// Search for an existing password
     Get(GetArgs),
-    //Edit an existing password
-    // Edit(EditArgs),
 }
+
 #[derive(Args)]
 pub struct GetArgs {
     /// The password name to search for
@@ -32,34 +33,34 @@ pub struct GetArgs {
 
 #[derive(Args)]
 pub struct AddArgs {
-    /// Name, primarily used for searching passwords
+    /// Password name
     #[arg(short, long)]
     pub name: String,
-    /// Email address
+    /// Optional email address
     #[arg(short, long)]
     pub email: Option<String>,
-    /// Username
+    /// Optional username
     #[arg(short, long)]
     pub username: Option<String>,
-    /// Additional notes
+    /// Optional notes
     #[arg(short = 't', long)]
     pub notes: Option<String>,
-    
+    /// Optional method of password generation
     #[command(subcommand)]
     pub password_type: Option<PasswordTypes>,
 }
 
-
 #[derive(Subcommand)]
 pub enum PasswordTypes {
-    /// Manually type a password 
+    /// Manually type a password
     Manual(ManualArgs),
     /// Automatically generate a strong password (recommended)
     Auto(AutoArgs),
 }
+
 #[derive(Args)]
 pub struct ManualArgs {
-    /// Password to use
+    /// Password
     #[arg(short, long)]
     password: String,
 }
