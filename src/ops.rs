@@ -1,9 +1,10 @@
-use crate::models::{NewPassword, Password};
+use crate::models::{NewPassword, Password, PasswordForm};
 use crate::schema::password::dsl::*;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use dotenvy::dotenv;
 use std::env;
+use crate::crypto::hash;
 
 // these functions provide the basic CRUD operations, i.e create, read, update, delete
 // currently these functions are not generic, possible todo
@@ -27,34 +28,49 @@ pub fn insert_password(
         .execute(connection)
 }
 // get a password given a name of type &str and a connection
-fn get_password(
-    connection: &mut SqliteConnection,
-    term: &str,
-) -> Result<Password, diesel::result::Error> {
+pub fn get_password(connection: &mut SqliteConnection, term: &str) -> Option<Password> {
     password
         .filter(name.eq(term))
         .select(Password::as_select())
-        .first(connection) // here we use first to return only the first record
+        .first(connection)
+        .optional()
+        .expect("error getting password")
 }
 // delete a password given a name, again, not generic.
-fn delete_password(
-    connection: &mut SqliteConnection,
-    term: &str,
-) -> Result<usize, diesel::result::Error> {
-    diesel::delete(password.filter(name.eq(term))).execute(connection)
+pub fn delete_password(connection: &mut SqliteConnection, term: &str) {
+    let _ = diesel::delete(password.filter(name.eq(term))).execute(connection);
+}
+pub fn update_password(connection: &mut SqliteConnection, term: &str, form: PasswordForm) {
+    let _ = diesel::update(password.filter(name.eq(term)))
+        .set(form)
+        .execute(connection)
+        .expect("error updating password");
+}
+
+pub fn validate(connection: &mut SqliteConnection, master_password: &[u8]) -> bool {
+    let res = get_password(connection, ".master");
+    match res {
+        Some(val) => {
+            hex::decode(val.pass.unwrap()).unwrap() == hash(master_password).to_vec()
+        }
+        None => {
+            println!("No master password exists in the database.\nRun the application again and pass in \".master\" as the password name to generate a master password.");
+            false
+        }
+    }
 }
 
 // test module for CRUD ops
 #[cfg(test)]
 mod tests {
-
-    use diesel::{SqliteConnection, Connection};
-    use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-    use crate::models::NewPassword;
+    use super::{delete_password, get_password, insert_password, update_password};
+    use crate::crypto::hash;
+    use crate::models::{NewPassword, PasswordForm};
     use crate::schema::password::dsl::*;
     use diesel::prelude::*;
-    use super::{insert_password, delete_password, get_password};
-    
+    use diesel::{Connection, SqliteConnection};
+    use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+
     // the embed_migrations! macro will generate a constant value containing migrations, which are
     // stored in the binary
     const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
@@ -66,6 +82,7 @@ mod tests {
         connection
     }
     // testing-only function that inserts 1 test record with some data into a table
+    // none of this testing data is encrypted
     fn insert_test_data(connection: &mut SqliteConnection) {
         // test data
         let new_password = NewPassword {
@@ -79,13 +96,29 @@ mod tests {
         };
         insert_password(connection, new_password).unwrap();
     }
+    fn insert_master_password(connection: &mut SqliteConnection) {
+        let master_password = hash("mymasterpassword".as_bytes());
+        let encoded = hex::encode(master_password);
+        let data = Some(encoded.as_str());
+        insert_password(
+            connection,
+            NewPassword {
+                name: ".master",
+                username: None,
+                email: None,
+                pass: data,
+                notes: None,
+                kdf_salt: None,
+                aes_nonce: None,
+            },
+        ).unwrap();
+    }
     #[test]
     fn create() {
         let mut conn = establish_in_memory_connection();
         insert_test_data(&mut conn);
         assert_eq!(password.count().first::<i64>(&mut conn).unwrap(), 1);
     }
-    // tests  start here!
     #[test]
     fn read() {
         let mut conn = establish_in_memory_connection();
@@ -100,11 +133,36 @@ mod tests {
         let mut conn = establish_in_memory_connection();
 
         insert_test_data(&mut conn);
-        
-        let _ = delete_password(&mut conn, "test").unwrap();
+
+        let _ = delete_password(&mut conn, "test");
 
         assert_eq!(password.count().first::<i64>(&mut conn).unwrap(), 0);
-
-    }   
-
+    }
+    #[test]
+    fn update() {
+        let mut conn = establish_in_memory_connection();
+        insert_test_data(&mut conn);
+        update_password(
+            &mut conn,
+            "test",
+            PasswordForm {
+                name: Some("foo"),
+                username: None,
+                email: None,
+                pass: None,
+                notes: None,
+                kdf_salt: None,
+                aes_nonce: None,
+            },
+        );
+        let res = get_password(&mut conn, "foo");
+        assert_eq!(res.unwrap().name, "foo");
+    }
+    #[test]
+    fn validation() {
+        let mut conn = establish_in_memory_connection();
+        insert_master_password(&mut conn);
+        assert_eq!(super::validate(&mut conn, "mymasterpassword".as_bytes()), true);
+        assert_eq!(super::validate(&mut conn, "randomguess123".as_bytes()), false);
+    }
 }
