@@ -34,7 +34,7 @@ pub struct GetArgs {
 #[derive(Args)]
 pub struct AddArgs {
     /// Password name
-    #[arg(short, long)]
+    #[arg(short = 'N', long)]
     pub name: String,
     /// Optional email address
     #[arg(short, long)]
@@ -43,7 +43,7 @@ pub struct AddArgs {
     #[arg(short, long)]
     pub username: Option<String>,
     /// Optional notes
-    #[arg(short = 't', long)]
+    #[arg(short = 'n', long)]
     pub notes: Option<String>,
     /// Optional method of password generation
     #[command(subcommand)]
