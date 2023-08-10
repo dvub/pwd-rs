@@ -18,55 +18,43 @@ pub struct PwdArgs {
 #[derive(Subcommand)]
 pub enum PasswordCommands {
     /// Add a new password
-    Add(AddArgs),
+    Add {
+        /// Password name
+        #[arg(short = 'N', long)]
+        name: String,
+        /// Optional email address
+        #[arg(short, long)]
+        email: Option<String>,
+        /// Optional username
+        #[arg(short, long)]
+        username: Option<String>,
+        /// Optional notes
+        #[arg(short = 'n', long)]
+        notes: Option<String>,
+        /// Optional method of password generation
+        #[command(subcommand)]
+        password_type: Option<PasswordTypes>,
+    },
 
     /// Search for an existing password
-    Get(GetArgs),
+    Get {
+        /// The password name to search for
+        #[arg(short, long)]
+        name: String,
+    },
 }
-
-#[derive(Args)]
-pub struct GetArgs {
-    /// The password name to search for
-    #[arg(short, long)]
-    pub name: String,
-}
-
-#[derive(Args)]
-pub struct AddArgs {
-    /// Password name
-    #[arg(short = 'N', long)]
-    pub name: String,
-    /// Optional email address
-    #[arg(short, long)]
-    pub email: Option<String>,
-    /// Optional username
-    #[arg(short, long)]
-    pub username: Option<String>,
-    /// Optional notes
-    #[arg(short = 'n', long)]
-    pub notes: Option<String>,
-    /// Optional method of password generation
-    #[command(subcommand)]
-    pub password_type: Option<PasswordTypes>,
-}
-
 #[derive(Subcommand)]
 pub enum PasswordTypes {
     /// Manually type a password
-    Manual(ManualArgs),
+    Manual {
+        /// Password
+        #[arg(short, long)]
+        password: String,
+    },
     /// Automatically generate a strong password (recommended)
-    Auto(AutoArgs),
-}
-
-#[derive(Args)]
-pub struct ManualArgs {
-    /// Password
-    #[arg(short, long)]
-    password: String,
-}
-#[derive(Args)]
-pub struct AutoArgs {
-    /// Password length, max 32 characters
-    #[arg(short, long, default_value_t = 10)]
-    length: usize,
+    Auto {
+        /// Password length, max 32 characters
+        #[arg(short, long, default_value_t = 10)]
+        length: usize,
+    },
 }
