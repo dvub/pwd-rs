@@ -48,12 +48,12 @@ pub fn encrypt(
 
 pub fn derive_and_encrypt(
     master_password: &[u8],
-    password: &[u8],
+    data: &[u8],
     aes_nonce: GenericArray<u8, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>>,
     kdf_salt: &[u8],
 ) -> Vec<u8> {
     let derived_key = generate_key(master_password, kdf_salt);
-    encrypt(password, derived_key, aes_nonce)
+    encrypt(data, derived_key, aes_nonce)
 }
 
 #[cfg(test)]
