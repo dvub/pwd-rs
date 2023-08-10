@@ -7,6 +7,5 @@ CREATE TABLE password(
   email TEXT DEFAULT NULL,
   pass TEXT DEFAULT NULL,
   notes TEXT DEFAULT NULL,
-  kdf_salt TEXT DEFAULT NULL,
   aes_nonce TEXT DEFAULT NULL
 );
