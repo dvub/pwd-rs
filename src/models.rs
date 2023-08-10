@@ -12,7 +12,6 @@ pub struct Password {
     pub email: Option<String>,
     pub pass: Option<String>,
     pub notes: Option<String>,
-    pub kdf_salt: Option<String>,
     pub aes_nonce: Option<String>,
 }
 // struct to insert a new password
@@ -25,7 +24,6 @@ pub struct NewPassword<'a> {
     pub email: Option<&'a str>,
     pub pass: Option<&'a str>,
     pub notes: Option<&'a str>,
-    pub kdf_salt: Option<&'a str>,
     pub aes_nonce: Option<&'a str>,
 }
 // struct to update passwords
@@ -40,6 +38,5 @@ pub struct PasswordForm<'a> {
     pub email: Option<&'a str>,
     pub pass: Option<&'a str>,
     pub notes: Option<&'a str>,
-    pub kdf_salt: Option<&'a str>,
     pub aes_nonce: Option<&'a str>,
 }
