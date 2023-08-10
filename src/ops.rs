@@ -1,10 +1,11 @@
+use crate::crypto::{hash, derive_and_encrypt};
 use crate::models::{NewPassword, Password, PasswordForm};
 use crate::schema::password::dsl::*;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use dotenvy::dotenv;
 use std::env;
-use crate::crypto::hash;
+pub const MASTER_KEYWORD: &str = ".master";
 
 // these functions provide the basic CRUD operations, i.e create, read, update, delete
 // currently these functions are not generic, possible todo
@@ -46,21 +47,44 @@ pub fn update_password(connection: &mut SqliteConnection, term: &str, form: Pass
         .execute(connection)
         .expect("error updating password");
 }
-
-pub fn validate(connection: &mut SqliteConnection, master_password: &[u8]) -> bool {
-    let res = get_password(connection, ".master");
+pub fn check_master_exists(connection: &mut SqliteConnection) -> bool {
+    let res = get_password(connection, MASTER_KEYWORD);
     match res {
-        Some(val) => {
-            hex::decode(val.pass.unwrap()).unwrap() == hash(master_password).to_vec()
-        }
-        None => {
-            println!("No master password exists in the database.\nRun the application again and pass in \".master\" as the password name to generate a master password.");
-            false
-        }
+        Some(_) => true,
+        None => false,
     }
 }
 
+pub fn authenticate(connection: &mut SqliteConnection, master_password: &[u8]) -> bool {
+    let res =
+        get_password(connection, MASTER_KEYWORD).expect("Error: Master password does not exist");
+    hex::decode(
+        res.pass
+            .expect("Error: Master record exists but has no password"),
+    )
+    .unwrap()
+        == hash(master_password).to_vec()
+}
+pub fn insert_master_password(connection: &mut SqliteConnection, data: &[u8]) {
+    let master_password = hash(data);
+    let encoded = hex::encode(master_password);
+    let data = Some(encoded.as_str());
+    insert_password(
+        connection,
+        NewPassword {
+            name: super::MASTER_KEYWORD,
+            username: None,
+            email: None,
+            pass: data,
+            notes: None,
+            aes_nonce: None,
+        },
+    )
+    .unwrap();
+}
+
 // test module for CRUD ops
+
 #[cfg(test)]
 mod tests {
     use super::{delete_password, get_password, insert_password, update_password};
@@ -91,28 +115,11 @@ mod tests {
             email: Some("test@test.com"),
             pass: None,
             notes: None,
-            kdf_salt: None,
             aes_nonce: None,
         };
         insert_password(connection, new_password).unwrap();
     }
-    fn insert_master_password(connection: &mut SqliteConnection) {
-        let master_password = hash("mymasterpassword".as_bytes());
-        let encoded = hex::encode(master_password);
-        let data = Some(encoded.as_str());
-        insert_password(
-            connection,
-            NewPassword {
-                name: ".master",
-                username: None,
-                email: None,
-                pass: data,
-                notes: None,
-                kdf_salt: None,
-                aes_nonce: None,
-            },
-        ).unwrap();
-    }
+
     #[test]
     fn create() {
         let mut conn = establish_in_memory_connection();
@@ -151,7 +158,6 @@ mod tests {
                 email: None,
                 pass: None,
                 notes: None,
-                kdf_salt: None,
                 aes_nonce: None,
             },
         );
@@ -159,10 +165,15 @@ mod tests {
         assert_eq!(res.unwrap().name, "foo");
     }
     #[test]
-    fn validation() {
+    fn authenticate() {
         let mut conn = establish_in_memory_connection();
-        insert_master_password(&mut conn);
-        assert_eq!(super::validate(&mut conn, "mymasterpassword".as_bytes()), true);
-        assert_eq!(super::validate(&mut conn, "randomguess123".as_bytes()), false);
+        super::insert_master_password(&mut conn, b"mymasterpassword");
+        assert!(super::authenticate(&mut conn, b"mymasterpassword"));
+    }
+    #[test]
+    fn failed_authentication() {
+        let mut conn = establish_in_memory_connection();
+        super::insert_master_password(&mut conn, b"mymasterpassword");
+        assert!(!super::authenticate(&mut conn, b"randomguess"));
     }
 }
