@@ -8,6 +8,6 @@ diesel::table! {
         email -> Nullable<Text>,
         pass -> Nullable<Text>,
         notes -> Nullable<Text>,
-        aes_nonce -> Nullable<Text>,
+        aes_nonce -> Text,
     }
 }
