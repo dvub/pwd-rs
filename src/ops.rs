@@ -1,4 +1,4 @@
-use crate::crypto::{hash, encrypt_if_some};
+use crate::crypto::{hash, encrypt_if_some, derive_and_decrypt};
 use crate::models::{NewPassword, Password, PasswordForm};
 use crate::schema::password::dsl::*;
 use aes_gcm::aead::OsRng;
@@ -115,6 +115,14 @@ pub fn encrypt_and_insert_password(
     };
     insert_password(connection, new_password);
 
+}
+
+pub fn decrypt_and_read_password(
+    connection: &mut SqliteConnection,
+    master_password: &str,
+    term: &str,
+) {
+    let result = get_password(connection, term);
 }
 
 #[cfg(test)]

@@ -44,13 +44,14 @@ pub fn encrypt(
 }
 
 pub fn decrypt(
-    plaintext: &[u8],
+    ciphertext: &[u8],
     derived_key: [u8; 32],
     nonce: GenericArray<u8, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>>,
 ) -> Vec<u8> {
     let key = Key::<Aes256Gcm>::from_slice(&derived_key);
     let cipher = Aes256Gcm::new(&key);
-    cipher.decrypt(&nonce, plaintext.as_ref()).unwrap()
+    cipher.decrypt(&nonce, ciphertext.as_ref())
+        .expect("error decrypting data")
 }
 
 
@@ -80,6 +81,20 @@ pub fn encrypt_if_some(
         }
     }
 }
+
+pub fn derive_and_decrypt(
+    master_password: &[u8],
+    data: &[u8],
+    aes_nonce: GenericArray<u8, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>>,
+    kdf_salt: &[u8],
+)-> String {
+    let derived_key = generate_key(master_password, kdf_salt);
+    let decrypted = decrypt(data, derived_key, aes_nonce);
+    let decoded = hex::decode(decrypted).expect("error decoding decrypted data");
+    
+    String::from_utf8(decoded).unwrap()
+}
+
 pub fn decrypt_if_some(
     data: Option<&str>,
     master_password: &str,
@@ -88,13 +103,14 @@ pub fn decrypt_if_some(
 ) -> Option<String> {
     match data {
         Some(val) => {
-            Some(derive_and_encrypt(master_password.as_bytes(), val.as_bytes(), aes_nonce, kdf_salt.as_bytes()))
+            Some(derive_and_decrypt(master_password.as_bytes(), val.as_bytes(), aes_nonce, kdf_salt.as_bytes()))
         }
         None => {
             None
         }
     }
 }
+
 
  
 #[cfg(test)]
@@ -132,5 +148,5 @@ mod tests {
             hex_literal::hex!("e9d4ea6e14c8958ec074b355cebe0d78b0f8d45b835bacf213030f9e791e3bbc");
         assert_eq!(key, expected);
     }
-    
+
 }
