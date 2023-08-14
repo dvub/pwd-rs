@@ -43,6 +43,17 @@ pub fn encrypt(
     cipher.encrypt(&nonce, plaintext.as_ref()).unwrap()
 }
 
+pub fn decrypt(
+    plaintext: &[u8],
+    derived_key: [u8; 32],
+    nonce: GenericArray<u8, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>>,
+) -> Vec<u8> {
+    let key = Key::<Aes256Gcm>::from_slice(&derived_key);
+    let cipher = Aes256Gcm::new(&key);
+    cipher.decrypt(&nonce, plaintext.as_ref()).unwrap()
+}
+
+
 pub fn derive_and_encrypt(
     master_password: &[u8],
     data: &[u8],
@@ -54,7 +65,7 @@ pub fn derive_and_encrypt(
     hex::encode(encrypted)
 }
 
-pub fn encrypt_if_some<'a>(
+pub fn encrypt_if_some(
     data: Option<&str>,
     master_password: &str,
     aes_nonce: GenericArray<u8, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>>,
@@ -69,6 +80,22 @@ pub fn encrypt_if_some<'a>(
         }
     }
 }
+pub fn decrypt_if_some(
+    data: Option<&str>,
+    master_password: &str,
+    aes_nonce: GenericArray<u8, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>>,
+    kdf_salt: &str
+) -> Option<String> {
+    match data {
+        Some(val) => {
+            Some(derive_and_encrypt(master_password.as_bytes(), val.as_bytes(), aes_nonce, kdf_salt.as_bytes()))
+        }
+        None => {
+            None
+        }
+    }
+}
+
  
 #[cfg(test)]
 mod tests {
