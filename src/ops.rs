@@ -117,23 +117,12 @@ pub fn encrypt_and_insert_password(
 
 }
 
-
-// test module for CRUD ops
-
 #[cfg(test)]
 mod tests {
-    use super::{delete_password, get_password, insert_password, update_password};
-    use crate::crypto::generate_key;
-    use crate::models::{NewPassword, PasswordForm};
     use crate::schema::password::dsl::*;
-    use aes_gcm::aead::Aead;
-    use aes_gcm::aead::consts::{B1, B0};
-    use aes_gcm::aead::generic_array::GenericArray;
-    use aes_gcm::{Aes256Gcm, KeyInit};
     use diesel::prelude::*;
     use diesel::{Connection, SqliteConnection};
     use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-    use sha2::digest::typenum::{UInt, UTerm};
 
     // the embed_migrations! macro will generate a constant value containing migrations, which are
     // stored in the binary
@@ -148,6 +137,7 @@ mod tests {
     // testing-only function that inserts 1 test record with some data into a table
     // none of this testing data is encrypted
     fn insert_test_data(connection: &mut SqliteConnection) {
+        use crate::models::NewPassword;
         // test data
         let new_password = NewPassword {
             name: "test",
@@ -157,7 +147,7 @@ mod tests {
             notes: None,
             aes_nonce: "",
         };
-        insert_password(connection, new_password);
+        super::insert_password(connection, new_password);
     }
 
     #[test]
@@ -172,7 +162,7 @@ mod tests {
 
         insert_test_data(&mut conn);
 
-        let res = get_password(&mut conn, "test").unwrap();
+        let res = super::get_password(&mut conn, "test").unwrap();
         assert_eq!(res.username, Some("tester".to_string()));
     }
     #[test]
@@ -181,15 +171,16 @@ mod tests {
 
         insert_test_data(&mut conn);
 
-        let _ = delete_password(&mut conn, "test");
+        let _ = super::delete_password(&mut conn, "test");
 
         assert_eq!(password.count().first::<i64>(&mut conn).unwrap(), 0);
     }
     #[test]
     fn update() {
+        use crate::models::PasswordForm;
         let mut conn = establish_in_memory_connection();
         insert_test_data(&mut conn);
-        update_password(
+        super::update_password(
             &mut conn,
             "test",
             PasswordForm {
@@ -201,7 +192,7 @@ mod tests {
                 aes_nonce: "",
             },
         );
-        let res = get_password(&mut conn, "foo");
+        let res = super::get_password(&mut conn, "foo");
         assert_eq!(res.unwrap().name, "foo");
     }
     #[test]
@@ -216,26 +207,30 @@ mod tests {
         super::insert_master_password(&mut conn, b"mymasterpassword");
         assert!(!super::authenticate(&mut conn, b"randomguess"));
     }
+    // test higher-level code
     #[test]
     fn read_encrypted_data() {
-        let mut conn = establish_in_memory_connection();
-        super::encrypt_and_insert_password(&mut conn, "mymasterpassword", "tester", Some("test"), Some("tester@test.com"), Some("secret_pass123!"), None);
+        use aes_gcm::aead::Aead;
+        use aes_gcm::aead::generic_array::GenericArray;
+        use aes_gcm::{Aes256Gcm, KeyInit};
+        use crate::crypto::generate_key;
+        let password_important = "secret_pass123!";
+        let user = "tester";
 
-        let key = generate_key(b"mymasterpassword", b"tester");
+        let mut conn = establish_in_memory_connection();
+        super::encrypt_and_insert_password(&mut conn, "mymasterpassword", user, Some("test"), Some("tester@test.com"), Some(password_important), None);
+
+        let key = generate_key(b"mymasterpassword", user.as_bytes());
         let cipher = Aes256Gcm::new(&key.into());
 
-        let res = get_password(&mut conn, "tester").unwrap();
+        let res = super::get_password(&mut conn, user).unwrap();
 
         let nonce = hex::decode(res.aes_nonce).unwrap();
-
         let ciphertext = hex::decode(res.pass.expect("no password")).expect("error decoding password");
 
         let plaintext = cipher.decrypt(GenericArray::from_slice(&nonce), ciphertext.as_ref()).expect("asd");
-        assert_eq!(plaintext, b"secret_pass123!");
-
-
-
-
+        assert_eq!(plaintext, password_important.as_bytes());
     }
+    
 
 }
