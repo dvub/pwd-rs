@@ -12,7 +12,7 @@ pub struct Password {
     pub email: Option<String>,
     pub pass: Option<String>,
     pub notes: Option<String>,
-    pub aes_nonce: Option<String>,
+    pub aes_nonce: String,
 }
 // struct to insert a new password
 // does NOT include id, as id is auto incremented and should almost never be manually set
@@ -24,7 +24,7 @@ pub struct NewPassword<'a> {
     pub email: Option<&'a str>,
     pub pass: Option<&'a str>,
     pub notes: Option<&'a str>,
-    pub aes_nonce: Option<&'a str>,
+    pub aes_nonce: &'a str,
 }
 // struct to update passwords
 // all fields are optional,
@@ -38,5 +38,5 @@ pub struct PasswordForm<'a> {
     pub email: Option<&'a str>,
     pub pass: Option<&'a str>,
     pub notes: Option<&'a str>,
-    pub aes_nonce: Option<&'a str>,
+    pub aes_nonce: &'a str,
 }
