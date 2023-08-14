@@ -8,10 +8,7 @@ use aes_gcm::{
 };
 use pbkdf2::pbkdf2_hmac;
 use sha2::{
-    digest::typenum::{
-        UInt, 
-        UTerm
-    },
+    digest::typenum::{UInt, UTerm},
     Digest, Sha256,
 };
 
@@ -51,11 +48,28 @@ pub fn derive_and_encrypt(
     data: &[u8],
     aes_nonce: GenericArray<u8, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>>,
     kdf_salt: &[u8],
-) -> Vec<u8> {
+)-> String {
     let derived_key = generate_key(master_password, kdf_salt);
-    encrypt(data, derived_key, aes_nonce)
+    let encrypted = encrypt(data, derived_key, aes_nonce);
+    hex::encode(encrypted)
 }
 
+pub fn encrypt_if_some<'a>(
+    data: Option<&str>,
+    master_password: &str,
+    aes_nonce: GenericArray<u8, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>>,
+    kdf_salt: &str
+) -> Option<String> {
+    match data {
+        Some(val) => {
+            Some(hex::encode(derive_and_encrypt(master_password.as_bytes(), val.as_bytes(), aes_nonce, kdf_salt.as_bytes())))
+        }
+        None => {
+            None
+        }
+    }
+}
+ 
 #[cfg(test)]
 mod tests {
 
@@ -91,4 +105,5 @@ mod tests {
             hex_literal::hex!("e9d4ea6e14c8958ec074b355cebe0d78b0f8d45b835bacf213030f9e791e3bbc");
         assert_eq!(key, expected);
     }
+    
 }
