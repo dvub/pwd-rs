@@ -62,7 +62,7 @@ pub fn encrypt_if_some<'a>(
 ) -> Option<String> {
     match data {
         Some(val) => {
-            Some(hex::encode(derive_and_encrypt(master_password.as_bytes(), val.as_bytes(), aes_nonce, kdf_salt.as_bytes())))
+            Some(derive_and_encrypt(master_password.as_bytes(), val.as_bytes(), aes_nonce, kdf_salt.as_bytes()))
         }
         None => {
             None
