@@ -3,13 +3,12 @@ pub mod models;
 pub mod schema;
 pub mod ops;
 pub mod crypto;
-
-use crypto::derive_and_encrypt;
 use ops::*;
 use args::PwdArgs;
 use clap::Parser;
 
 use ops::{check_master_exists, insert_master_password};
+
 
 
 
@@ -24,7 +23,7 @@ fn main() {
     let master_exists = check_master_exists(&mut conn);
 
     match args.command {
-        args::PasswordCommands::Add {name, email, username, notes, password_type} => {
+        args::PasswordCommands::Add {name, email: _, username: _, notes: _, password_type: _} => {
             // 
             if name == ops::MASTER_KEYWORD {
                 if master_exists {
@@ -49,8 +48,9 @@ fn main() {
             }
 
             println!("Successfully authenticated using master record.");
+
         }
-        args::PasswordCommands::Get { name } => {
+        args::PasswordCommands::Get { name: _ } => {
 
         }
     }
