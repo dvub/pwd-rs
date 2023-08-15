@@ -12,6 +12,15 @@ use sha2::{
     Digest, Sha256,
 };
 
+/*
+you can use impl AsRef<[u8]> as the type for the master password/data, which would allow the user to pass a str or other types that can generate a ref to a byte slice
+encrypt_if_some should probably be done at the call site instead, if the provided data is Some, call derive_and_encrypt, and if it's not, just don't call the encrypt function
+hex encoding should probably happen outside the encrypt function
+RustCrypto has in-place functions which can modify the data buffer in-place rather than making a new allocation each encryption (which could help with performance if you're trying to encrypt large blobs of data at a time): https://docs.rs/aes-gcm/latest/aes_gcm/trait.AeadInPlace.html#method.encrypt_in_place
+encryption failures probably should be propagated instead of unwrapped, especially since decrypting with the wrong key will result in an error and that should probably be a user-friendly message instead of a stack trace
+*/
+
+
 // hash a given &str using Sha512
 // returns a String
 pub fn hash(
