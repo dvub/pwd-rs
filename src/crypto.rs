@@ -96,7 +96,7 @@ pub fn derive_and_decrypt(
 }
 
 pub fn decrypt_if_some(
-    data: Option<&str>,
+    data: Option<String>,
     master_password: &str,
     aes_nonce: GenericArray<u8, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>>,
     kdf_salt: &str
@@ -105,7 +105,7 @@ pub fn decrypt_if_some(
         Some(val) => {
             Some(derive_and_decrypt(master_password.as_bytes(), val.as_bytes(), aes_nonce, kdf_salt.as_bytes()))
         }
-        None => {
+        None => { 
             None
         }
     }
@@ -115,6 +115,8 @@ pub fn decrypt_if_some(
  
 #[cfg(test)]
 mod tests {
+    use aes_gcm::aead::generic_array::GenericArray;
+
 
     #[test]
     fn aes() {
@@ -148,5 +150,23 @@ mod tests {
             hex_literal::hex!("e9d4ea6e14c8958ec074b355cebe0d78b0f8d45b835bacf213030f9e791e3bbc");
         assert_eq!(key, expected);
     }
+    #[test]
+    fn derive_and_encrypt() {
+        use aes_gcm::{
+            aead::{Aead, AeadCore, KeyInit, OsRng},
+            Aes256Gcm, Key,
+        };
 
+        let res = super::derive_and_encrypt(b"mymasterpassword", b"plaintext message", *GenericArray::from_slice("nonce".as_bytes()), b"salt");
+
+
+        let key = super::generate_key(b"mymasterpassword", b"salt");
+        let key = Key::<Aes256Gcm>::from_slice(&key);
+        let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+        let cipher = Aes256Gcm::new(key);
+
+
+        let plaintext = cipher.decrypt(&nonce, res.as_ref()).unwrap();
+        assert_eq!(&plaintext, b"plaintext message");
+    }
 }

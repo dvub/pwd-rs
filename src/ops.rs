@@ -1,7 +1,8 @@
-use crate::crypto::{hash, encrypt_if_some, derive_and_decrypt};
+use crate::crypto::{hash, encrypt_if_some, derive_and_decrypt, decrypt_if_some};
 use crate::models::{NewPassword, Password, PasswordForm};
 use crate::schema::password::dsl::*;
 use aes_gcm::aead::OsRng;
+use aes_gcm::aead::generic_array::GenericArray;
 use aes_gcm::{Aes256Gcm, AeadCore};
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
@@ -121,8 +122,28 @@ pub fn decrypt_and_read_password(
     connection: &mut SqliteConnection,
     master_password: &str,
     term: &str,
-) {
+) -> Option<Password> {
     let result = get_password(connection, term);
+    match result {
+        Some(obj) => {
+            let decrypted_email = decrypt_if_some(obj.email, master_password, *GenericArray::from_slice(obj.aes_nonce.as_bytes()), &obj.name);
+            let decrypted_username = decrypt_if_some(obj.username, master_password, *GenericArray::from_slice(obj.aes_nonce.as_bytes()), &obj.name);
+            let decrypted_pass = decrypt_if_some(obj.pass, master_password, *GenericArray::from_slice(obj.aes_nonce.as_bytes()), &obj.name);
+            let decrypted_notes = decrypt_if_some(obj.notes, master_password, *GenericArray::from_slice(obj.aes_nonce.as_bytes()), &obj.name);
+            Some(Password {
+                id: obj.id,
+                name: obj.name,
+                username: decrypted_username,
+                email: decrypted_email,
+                pass: decrypted_pass,
+                notes: decrypted_notes,
+                aes_nonce: obj.aes_nonce
+            })
+        }
+        None => {
+            None
+        }
+    }
 }
 
 #[cfg(test)]
@@ -238,6 +259,14 @@ mod tests {
 
         let plaintext = cipher.decrypt(GenericArray::from_slice(&nonce), ciphertext.as_ref()).expect("asd");
         assert_eq!(plaintext, password_important.as_bytes());
+    }
+    #[test]
+    fn read_decrypted_data() {
+        let mut conn = establish_in_memory_connection();
+        super::encrypt_and_insert_password(&mut conn, "mymasterpassword", "tester", Some("test"), Some("tester@test.com"), Some("secret_pass123!"), None);
+        let result = super::decrypt_and_read_password(&mut conn, "mymasterpassword", "tester");
+        assert_eq!(result.unwrap().email.unwrap(), "tester@test.com");
+
     }
     
 
