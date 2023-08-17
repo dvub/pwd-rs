@@ -124,7 +124,7 @@ pub fn decrypt_if_some(
  
 #[cfg(test)]
 mod tests {
-    use aes_gcm::aead::generic_array::GenericArray;
+
 
 
     #[test]
@@ -133,7 +133,7 @@ mod tests {
             aead::{Aead, AeadCore, KeyInit, OsRng},
             Aes256Gcm, Key,
         };
-
+        
         let plain_key = b"this is the key. 32 bytes long!!";
 
         let key = Key::<Aes256Gcm>::from_slice(plain_key);
@@ -141,12 +141,14 @@ mod tests {
         let cipher = Aes256Gcm::new(key);
 
         let res = super::encrypt(b"plaintext message", *plain_key, nonce);
-
+        // an online aes encryption tool could be used to obtain results for comparison,
+        // however simply using the decrypt() function is also acceptable
         let plaintext = cipher.decrypt(&nonce, res.as_ref()).unwrap();
         assert_eq!(&plaintext, b"plaintext message");
     }
     #[test]
     fn sha512() {
+        // the string literal came from an online hasher to compare results to
         let res = &super::hash(b"test")[..];
         let expected =
             hex_literal::hex!("9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08");
@@ -154,28 +156,43 @@ mod tests {
     }
     #[test]
     fn kdf() {
+        // generate key
         let key = super::generate_key(b"super_secret", b"notrandomsalt");
+        // the string literal was obtained from an online pbkdf generator 
         let expected =
             hex_literal::hex!("e9d4ea6e14c8958ec074b355cebe0d78b0f8d45b835bacf213030f9e791e3bbc");
         assert_eq!(key, expected);
     }
     #[test]
     fn derive_and_encrypt() {
+
         use aes_gcm::{
             aead::{Aead, AeadCore, KeyInit, OsRng},
             Aes256Gcm, Key,
         };
-
-        let res = super::derive_and_encrypt(b"mymasterpassword", b"plaintext message", *GenericArray::from_slice("nonce".as_bytes()), b"salt");
-
-
-        let key = super::generate_key(b"mymasterpassword", b"salt");
-        let key = Key::<Aes256Gcm>::from_slice(&key);
+        // define fields, this is only here so that i *know* i didnt make any spelling mistakes
         let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+        let message = b"plaintext message";
+        let master_password = b"mymasterpassword";
+        let salt = b"salt";
+        // get result from derive and encrypt function and decode the resulting string
+        let res = super::derive_and_encrypt(master_password, message, nonce, salt);
+        let decoded = hex::decode(res).expect("Error decoding result");
+        // use the functions from aes-gcm crate to get results and test against
+        let key = super::generate_key(master_password, salt);
+        let key = Key::<Aes256Gcm>::from_slice(&key);
         let cipher = Aes256Gcm::new(key);
 
-
-        let plaintext = cipher.decrypt(&nonce, res.as_ref()).unwrap();
-        assert_eq!(&plaintext, b"plaintext message");
+        let plaintext = cipher.decrypt(&nonce, decoded.as_ref()).unwrap();
+        // obviously, just check for equality here
+        assert_eq!(&plaintext, message);
+    }
+    #[test]
+    fn encrypt_if_some() {
+    
+        use aes_gcm::{Aes256Gcm, aead::{OsRng, AeadCore}};
+        let result = super::encrypt_if_some(Some("hello"), "mymasterpassword", Aes256Gcm::generate_nonce(&mut OsRng), "somesalt");  
+        assert_eq!(result.unwrap(), Some(_));
+    
     }
 }
