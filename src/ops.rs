@@ -1,7 +1,6 @@
 use crate::crypto::{derive_and_encrypt, hash};
 use crate::models::{NewPassword, Password, PasswordForm};
 use crate::schema::password::dsl::*;
-use aes_gcm::aead::generic_array::GenericArray;
 use aes_gcm::aead::OsRng;
 use aes_gcm::{AeadCore, Aes256Gcm};
 use diesel::prelude::*;
