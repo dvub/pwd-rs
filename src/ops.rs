@@ -1,9 +1,9 @@
-use crate::crypto::{hash, encrypt_if_some, derive_and_decrypt, decrypt_if_some};
+use crate::crypto::{derive_and_encrypt, hash};
 use crate::models::{NewPassword, Password, PasswordForm};
 use crate::schema::password::dsl::*;
-use aes_gcm::aead::OsRng;
 use aes_gcm::aead::generic_array::GenericArray;
-use aes_gcm::{Aes256Gcm, AeadCore};
+use aes_gcm::aead::OsRng;
+use aes_gcm::{AeadCore, Aes256Gcm};
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use dotenvy::dotenv;
@@ -22,10 +22,7 @@ pub fn establish_connection() -> SqliteConnection {
     SqliteConnection::establish(&database_url).expect("Error connecting to database")
 }
 // insert password given an object of type NewPassword and a connection
-pub fn insert_password(
-    connection: &mut SqliteConnection,
-    new_password: NewPassword,
-) {
+pub fn insert_password(connection: &mut SqliteConnection, new_password: NewPassword) {
     diesel::insert_into(password)
         .values(&new_password)
         .execute(connection)
@@ -73,7 +70,7 @@ pub fn insert_master_password(connection: &mut SqliteConnection, data: &[u8]) {
     let master_password = hash(data);
     let encoded = hex::encode(master_password);
     let data = Some(encoded.as_str());
-        diesel::insert_into(password)
+    diesel::insert_into(password)
         .values(NewPassword {
             name: MASTER_KEYWORD,
             username: None,
@@ -94,18 +91,62 @@ pub fn encrypt_and_insert_password(
     new_email: Option<&str>,
     new_pass: Option<&str>,
     new_notes: Option<&str>,
-    
 ) {
-
     let nonce = Aes256Gcm::generate_nonce(OsRng);
-
-    let encrypted_username = encrypt_if_some(new_username, &master_password, nonce, new_name);
-    
-    let encrypted_email = encrypt_if_some(new_email, &master_password, nonce, &new_name);
-    let encrypted_pass = encrypt_if_some(new_pass, &master_password, nonce, &new_name);
-    let encrypted_notes = encrypt_if_some(new_notes, &master_password, nonce, &new_name);
-
     let encoded_nonce = hex::encode(nonce);
+
+    derive_and_encrypt(&master_password, "asd", &nonce, &new_name);
+
+    let encrypted_username = if let Some(data) = new_username {
+        
+        let encrypted_data = derive_and_encrypt(
+            &master_password,
+            data,
+            &nonce,
+            &new_name,
+        );
+        let encoded_data = hex::encode(encrypted_data);
+        Some(encoded_data)
+    } else {
+        None
+    };
+    let encrypted_email = if let Some(data) = new_email {
+        let encrypted_data = derive_and_encrypt(
+            &master_password,
+            data,
+            &nonce,
+            &new_name,
+        );
+        let encoded_data = hex::encode(encrypted_data);
+        Some(encoded_data)
+    } else {
+        None
+    };
+    let encrypted_pass = if let Some(data) = new_pass {
+        let encrypted_data = derive_and_encrypt(
+            &master_password,
+            data,
+            &nonce,
+            &new_name,
+        );
+        let encoded_data = hex::encode(encrypted_data);
+        Some(encoded_data)
+    } else {
+        None
+    };
+    let encrypted_notes = if let Some(data) = new_notes {
+        let encrypted_data = derive_and_encrypt(
+            &master_password,
+            data,
+            &nonce,
+            &new_name,
+        );
+        let encoded_data = hex::encode(encrypted_data);
+        Some(encoded_data)
+    } else {
+        None
+    };
+
     let new_password = NewPassword {
         name: new_name,
         username: encrypted_username.as_deref(),
@@ -115,35 +156,6 @@ pub fn encrypt_and_insert_password(
         aes_nonce: &encoded_nonce,
     };
     insert_password(connection, new_password);
-
-}
-
-pub fn decrypt_and_read_password(
-    connection: &mut SqliteConnection,
-    master_password: &str,
-    term: &str,
-) -> Option<Password> {
-    let result = get_password(connection, term);
-    match result {
-        Some(obj) => {
-            let decrypted_email = decrypt_if_some(obj.email, master_password, *GenericArray::from_slice(obj.aes_nonce.as_bytes()), &obj.name);
-            let decrypted_username = decrypt_if_some(obj.username, master_password, *GenericArray::from_slice(obj.aes_nonce.as_bytes()), &obj.name);
-            let decrypted_pass = decrypt_if_some(obj.pass, master_password, *GenericArray::from_slice(obj.aes_nonce.as_bytes()), &obj.name);
-            let decrypted_notes = decrypt_if_some(obj.notes, master_password, *GenericArray::from_slice(obj.aes_nonce.as_bytes()), &obj.name);
-            Some(Password {
-                id: obj.id,
-                name: obj.name,
-                username: decrypted_username,
-                email: decrypted_email,
-                pass: decrypted_pass,
-                notes: decrypted_notes,
-                aes_nonce: obj.aes_nonce
-            })
-        }
-        None => {
-            None
-        }
-    }
 }
 
 #[cfg(test)]
@@ -239,15 +251,23 @@ mod tests {
     // test higher-level code
     #[test]
     fn read_encrypted_data() {
-        use aes_gcm::aead::Aead;
-        use aes_gcm::aead::generic_array::GenericArray;
-        use aes_gcm::{Aes256Gcm, KeyInit};
         use crate::crypto::generate_key;
+        use aes_gcm::aead::generic_array::GenericArray;
+        use aes_gcm::aead::Aead;
+        use aes_gcm::{Aes256Gcm, KeyInit};
         let password_important = "secret_pass123!";
         let user = "tester";
 
         let mut conn = establish_in_memory_connection();
-        super::encrypt_and_insert_password(&mut conn, "mymasterpassword", user, Some("test"), Some("tester@test.com"), Some(password_important), None);
+        super::encrypt_and_insert_password(
+            &mut conn,
+            "mymasterpassword",
+            user,
+            Some("test"),
+            Some("tester@test.com"),
+            Some(password_important),
+            None,
+        );
 
         let key = generate_key(b"mymasterpassword", user.as_bytes());
         let cipher = Aes256Gcm::new(&key.into());
@@ -255,19 +275,12 @@ mod tests {
         let res = super::get_password(&mut conn, user).unwrap();
 
         let nonce = hex::decode(res.aes_nonce).unwrap();
-        let ciphertext = hex::decode(res.pass.expect("no password")).expect("error decoding password");
+        let ciphertext =
+            hex::decode(res.pass.expect("no password")).expect("error decoding password");
 
-        let plaintext = cipher.decrypt(GenericArray::from_slice(&nonce), ciphertext.as_ref()).expect("asd");
+        let plaintext = cipher
+            .decrypt(GenericArray::from_slice(&nonce), ciphertext.as_ref())
+            .expect("asd");
         assert_eq!(plaintext, password_important.as_bytes());
     }
-    #[test]
-    fn read_decrypted_data() {
-        let mut conn = establish_in_memory_connection();
-        super::encrypt_and_insert_password(&mut conn, "mymasterpassword", "tester", Some("test"), Some("tester@test.com"), Some("secret_pass123!"), None);
-        let result = super::decrypt_and_read_password(&mut conn, "mymasterpassword", "tester");
-        assert_eq!(result.unwrap().email.unwrap(), "tester@test.com");
-
-    }
-    
-
 }

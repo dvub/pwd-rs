@@ -11,15 +11,12 @@ use sha2::{
     digest::typenum::{UInt, UTerm},
     Digest, Sha256,
 };
-
+// TODO
 /*
-you can use impl AsRef<[u8]> as the type for the master password/data, which would allow the user to pass a str or other types that can generate a ref to a byte slice
-encrypt_if_some should probably be done at the call site instead, if the provided data is Some, call derive_and_encrypt, and if it's not, just don't call the encrypt function
-hex encoding should probably happen outside the encrypt function
-RustCrypto has in-place functions which can modify the data buffer in-place rather than making a new allocation each encryption (which could help with performance if you're trying to encrypt large blobs of data at a time): https://docs.rs/aes-gcm/latest/aes_gcm/trait.AeadInPlace.html#method.encrypt_in_place
-encryption failures probably should be propagated instead of unwrapped, especially since decrypting with the wrong key will result in an error and that should probably be a user-friendly message instead of a stack trace
+    encryption failures probably should be propagated instead of unwrapped, 
+    especially since decrypting with the wrong key will result in an error 
+    and that should probably be a user-friendly message instead of a stack trace
 */
-
 
 // hash a given &str using Sha512
 // returns a String
@@ -59,36 +56,20 @@ pub fn decrypt(
 ) -> Vec<u8> {
     let key = Key::<Aes256Gcm>::from_slice(&derived_key);
     let cipher = Aes256Gcm::new(&key);
-    cipher.decrypt(&nonce, ciphertext.as_ref())
+    cipher
+        .decrypt(&nonce, ciphertext.as_ref())
         .expect("error decrypting data")
 }
 
-
 pub fn derive_and_encrypt(
-    master_password: &[u8],
-    data: &[u8],
-    aes_nonce: GenericArray<u8, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>>,
-    kdf_salt: &[u8],
-)-> String {
-    let derived_key = generate_key(master_password, kdf_salt);
-    let encrypted = encrypt(data, derived_key, aes_nonce);
-    hex::encode(encrypted)
-}
-
-pub fn encrypt_if_some(
-    data: Option<&str>,
-    master_password: &str,
-    aes_nonce: GenericArray<u8, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>>,
-    kdf_salt: &str
-) -> Option<String> {
-    match data {
-        Some(val) => {
-            Some(derive_and_encrypt(master_password.as_bytes(), val.as_bytes(), aes_nonce, kdf_salt.as_bytes()))
-        }
-        None => {
-            None
-        }
-    }
+    master_password: impl AsRef<[u8]>,
+    data: impl AsRef<[u8]>,
+    aes_nonce: &GenericArray<u8, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>>,
+    kdf_salt: impl AsRef<[u8]>,
+) -> Vec<u8> {
+    let derived_key = generate_key(master_password.as_ref(), kdf_salt.as_ref());
+    let encrypted = encrypt(data.as_ref(), derived_key, *aes_nonce);
+    encrypted
 }
 
 pub fn derive_and_decrypt(
@@ -96,36 +77,16 @@ pub fn derive_and_decrypt(
     data: &[u8],
     aes_nonce: GenericArray<u8, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>>,
     kdf_salt: &[u8],
-)-> String {
+) -> String {
     let derived_key = generate_key(master_password, kdf_salt);
     let decrypted = decrypt(data, derived_key, aes_nonce);
     let decoded = hex::decode(decrypted).expect("error decoding decrypted data");
-    
+
     String::from_utf8(decoded).unwrap()
 }
 
-pub fn decrypt_if_some(
-    data: Option<String>,
-    master_password: &str,
-    aes_nonce: GenericArray<u8, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>>,
-    kdf_salt: &str
-) -> Option<String> {
-    match data {
-        Some(val) => {
-            Some(derive_and_decrypt(master_password.as_bytes(), val.as_bytes(), aes_nonce, kdf_salt.as_bytes()))
-        }
-        None => { 
-            None
-        }
-    }
-}
-
-
- 
 #[cfg(test)]
 mod tests {
-
-
 
     #[test]
     fn aes() {
@@ -133,7 +94,7 @@ mod tests {
             aead::{Aead, AeadCore, KeyInit, OsRng},
             Aes256Gcm, Key,
         };
-        
+
         let plain_key = b"this is the key. 32 bytes long!!";
 
         let key = Key::<Aes256Gcm>::from_slice(plain_key);
@@ -158,14 +119,13 @@ mod tests {
     fn kdf() {
         // generate key
         let key = super::generate_key(b"super_secret", b"notrandomsalt");
-        // the string literal was obtained from an online pbkdf generator 
+        // the string literal was obtained from an online pbkdf generator
         let expected =
             hex_literal::hex!("e9d4ea6e14c8958ec074b355cebe0d78b0f8d45b835bacf213030f9e791e3bbc");
         assert_eq!(key, expected);
     }
     #[test]
     fn derive_and_encrypt() {
-
         use aes_gcm::{
             aead::{Aead, AeadCore, KeyInit, OsRng},
             Aes256Gcm, Key,
@@ -176,23 +136,15 @@ mod tests {
         let master_password = b"mymasterpassword";
         let salt = b"salt";
         // get result from derive and encrypt function and decode the resulting string
-        let res = super::derive_and_encrypt(master_password, message, nonce, salt);
-        let decoded = hex::decode(res).expect("Error decoding result");
+        let res = super::derive_and_encrypt(master_password, message, &nonce, salt);
         // use the functions from aes-gcm crate to get results and test against
         let key = super::generate_key(master_password, salt);
         let key = Key::<Aes256Gcm>::from_slice(&key);
         let cipher = Aes256Gcm::new(key);
 
-        let plaintext = cipher.decrypt(&nonce, decoded.as_ref()).unwrap();
+        let plaintext = cipher.decrypt(&nonce, res.as_ref()).unwrap();
         // obviously, just check for equality here
         assert_eq!(&plaintext, message);
     }
-    #[test]
-    fn encrypt_if_some() {
-    
-        use aes_gcm::{Aes256Gcm, aead::{OsRng, AeadCore}};
-        let result = super::encrypt_if_some(Some("hello"), "mymasterpassword", Aes256Gcm::generate_nonce(&mut OsRng), "somesalt");  
-        assert_eq!(result.unwrap(), Some(_));
-    
-    }
+
 }
