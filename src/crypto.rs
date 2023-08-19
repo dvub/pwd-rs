@@ -27,20 +27,9 @@ pub fn hash(
     hasher.finalize()
 }
 
-pub fn decrypt(
-    ciphertext: &[u8],
-    derived_key: [u8; 32],
-    nonce: GenericArray<u8, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>>,
-) -> Vec<u8> {
-    let key = Key::<Aes256Gcm>::from_slice(&derived_key);
-    let cipher = Aes256Gcm::new(&key);
-    cipher
-        .decrypt(&nonce, ciphertext.as_ref())
-        .expect("error decrypting data")
-}
 
 /// Derives a key from the provided `master_password`, and encrypts if `data` is `Some`; Otherwise, returns `None`.
-pub fn encrypt_if_some(
+pub fn encrypt(
     master_password: impl AsRef<[u8]>,
     data: Option<impl AsRef<[u8]>>,
     aes_nonce: &GenericArray<u8, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>>,
@@ -52,7 +41,12 @@ pub fn encrypt_if_some(
             let n = 4096;
             // Expected value of generated key:
             let mut derived_key = [0u8; 32];
-            pbkdf2_hmac::<Sha256>(master_password.as_ref(), kdf_salt.as_ref(), n, &mut derived_key);
+            pbkdf2_hmac::<Sha256>(
+                master_password.as_ref(),
+                kdf_salt.as_ref(),
+                n,
+                &mut derived_key,
+            );
 
             let key = Key::<Aes256Gcm>::from_slice(&derived_key);
             let cipher = Aes256Gcm::new(&key);
@@ -67,6 +61,7 @@ pub fn encrypt_if_some(
 
 #[cfg(test)]
 mod tests {
+    
 
     #[test]
     fn sha512() {
@@ -76,5 +71,24 @@ mod tests {
             hex_literal::hex!("9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08");
         assert_eq!(res, expected);
     }
+    #[test]
+    fn encrypt() {
+        use aes_gcm::{aead::OsRng, AeadCore, Aes256Gcm, Key, KeyInit, aead::Aead};
 
+        let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+        let res = super::encrypt(
+            "mymasterpassword",
+            Some("data"),
+            &nonce,
+            "salt",
+        );
+        // sourced from: https://neurotechnics.com/tools/pbkdf2-test
+        // hex::decode() will decode into an array and then create an encryption key for us to compare to
+        let expected = hex::decode("8f21affeb61e304e7b474229ffeb34309ed31beda58d153bc7ad9da6e9b6184c").unwrap();
+        let key = Key::<Aes256Gcm>::from_slice(&expected);
+
+        let cipher = Aes256Gcm::new(&key);
+        let ciphertext = cipher.encrypt(&nonce, b"data".as_ref()).unwrap();
+        assert_eq!(res.unwrap(), hex::encode(ciphertext));
+    }
 }

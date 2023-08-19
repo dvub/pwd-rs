@@ -1,4 +1,4 @@
-use crate::crypto::{hash, encrypt_if_some};
+use crate::crypto::{hash, encrypt};
 use crate::models::{NewPassword, Password, PasswordForm};
 use crate::schema::password::dsl::*;
 use aes_gcm::aead::OsRng;
@@ -96,10 +96,10 @@ pub fn encrypt_and_insert_password(
     let nonce = Aes256Gcm::generate_nonce(OsRng);
     let encoded_nonce = hex::encode(nonce);
     
-    let encrypted_username = encrypt_if_some(master_password, new_username, &nonce, new_name);
-    let encrypted_email = encrypt_if_some(master_password, new_email, &nonce, new_name);
-    let encrypted_pass = encrypt_if_some(master_password, new_pass, &nonce, new_name);
-    let encrypted_notes = encrypt_if_some(master_password, new_notes, &nonce, new_name);
+    let encrypted_username = encrypt(master_password, new_username, &nonce, new_name);
+    let encrypted_email = encrypt(master_password, new_email, &nonce, new_name);
+    let encrypted_pass = encrypt(master_password, new_pass, &nonce, new_name);
+    let encrypted_notes = encrypt(master_password, new_notes, &nonce, new_name);
     
     let new_password = NewPassword {
         name: new_name,
@@ -202,4 +202,5 @@ mod tests {
         super::insert_master_password(&mut conn, b"mymasterpassword");
         assert!(!super::authenticate(&mut conn, b"randomguess"));
     }
+
 }
