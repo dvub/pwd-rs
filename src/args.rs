@@ -41,6 +41,21 @@ pub enum PasswordCommands {
         /// The password name to search for
         #[arg(short, long)]
         name: String,
+        /// Get all password data
+        #[arg(short = 'A', long)]
+        all: bool,
+        /// Get email
+        #[arg(short, long)]
+        email: bool,
+        /// Get username
+        #[arg(short, long)]
+        username: bool,
+        /// Get password
+        #[arg(short, long)]
+        pass: bool,
+        /// Get notes
+        #[arg(short, long)]
+        notes: bool,
     },
 }
 #[derive(Subcommand)]
