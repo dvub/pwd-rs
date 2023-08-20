@@ -1,4 +1,6 @@
-use crate::crypto::{encrypt, hash};
+// spaghetti code below
+
+use crate::crypto::{decrypt, encrypt, hash};
 use crate::models::{NewPassword, Password, PasswordForm};
 use crate::schema::password::dsl::*;
 use aes_gcm::aead::OsRng;
@@ -7,6 +9,8 @@ use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use dotenvy::dotenv;
 use std::env;
+
+// this is a constant for the name column of the master record.
 pub const MASTER_KEYWORD: &str = ".master";
 
 // these functions provide the basic CRUD operations, i.e create, read, update, delete
@@ -82,8 +86,10 @@ pub fn insert_master_password(connection: &mut SqliteConnection, data: &[u8]) {
         .execute(connection)
         .expect("error inserting master password");
 }
+// higher level functions::
 
-pub fn encrypt_and_insert_password(
+// this function will take in the parameters for a new password entry and encrypt each one, then store the values
+pub fn encrypt_and_insert(
     connection: &mut SqliteConnection,
     master_password: &str,
     new_name: &str,
@@ -94,21 +100,63 @@ pub fn encrypt_and_insert_password(
 ) {
     let nonce = Aes256Gcm::generate_nonce(OsRng);
     let encoded_nonce = hex::encode(nonce);
-
-    let encrypted_username = encrypt(master_password, new_username, &nonce, new_name);
-    let encrypted_email = encrypt(master_password, new_email, &nonce, new_name);
-    let encrypted_pass = encrypt(master_password, new_pass, &nonce, new_name);
-    let encrypted_notes = encrypt(master_password, new_notes, &nonce, new_name);
+    // iteration??
+    // personally i think this is kind of cool, but it's probably not idiomatic AT ALL..
+    let params = vec![new_username, new_email, new_pass, new_notes];
+    let mut encrypted_values = Vec::<Option<String>>::new();
+    for param in params {
+        encrypted_values.push(encrypt(master_password, param, &nonce, new_name));
+    }
+    // there could be a lot of problems here, like if the order isn't linear like this
+    // but since this is all just internal, as long as *I* don't fuck it up it should be fine
 
     let new_password = NewPassword {
         name: new_name,
-        username: encrypted_username.as_deref(),
-        email: encrypted_email.as_deref(),
-        pass: encrypted_pass.as_deref(),
-        notes: encrypted_notes.as_deref(),
+        username: encrypted_values.get(0).unwrap().as_deref(),
+        email: encrypted_values.get(1).unwrap().as_deref(),
+        pass: encrypted_values.get(2).unwrap().as_deref(),
+        notes: encrypted_values.get(3).unwrap().as_deref(),
         aes_nonce: &encoded_nonce,
     };
     insert_password(connection, new_password);
+}
+
+// this function will search by the term parameter for a password, and decrypt the fields if the password is found.
+// if there is no password found, the function returns none.
+pub fn read_and_decrypt(
+    connection: &mut SqliteConnection,
+    master_password: &str,
+    term: &str,
+) -> Option<Password> {
+    let res = get_password(connection, term);
+    match res {
+        Some(value) => {
+            let params = vec![value.username, value.email, value.pass, value.notes];
+            let mut decrypted = Vec::<Option<String>>::new();
+            for param in params {
+                decrypted.push(decrypt(
+                    master_password,
+                    param,
+                    &value.aes_nonce,
+                    &value.name,
+                ));
+            }
+
+            // clone() could be pretty inefficient in some cases, so this might have to be rewritten
+            // todo
+            // (?)
+            Some(Password {
+                id: value.id,
+                name: value.name,
+                username: decrypted.get(0).unwrap().clone(),
+                email: decrypted.get(1).unwrap().clone(),
+                pass: decrypted.get(2).unwrap().clone(),
+                notes: decrypted.get(3).unwrap().clone(),
+                aes_nonce: value.aes_nonce,
+            })
+        }
+        None => None,
+    }
 }
 
 #[cfg(test)]
@@ -209,7 +257,7 @@ mod tests {
 
         let mut conn = establish_in_memory_connection();
         // this is the function we are testing
-        super::encrypt_and_insert_password(
+        super::encrypt_and_insert(
             &mut conn,
             "mymasterpassword",
             "salt", // note that i put salt here because i have the pbkdf2 string literal below derived with "salt" as the salt..
@@ -241,5 +289,20 @@ mod tests {
         let val = cipher.decrypt(nonce, ciphertext.as_ref()).expect("ERROR!");
 
         assert_eq!(val, b"tester1");
+    }
+    #[test]
+    fn read_and_decrypt() {
+        let mut conn = establish_in_memory_connection();
+        super::encrypt_and_insert(
+            &mut conn,
+            "mymasterpassword",
+            "salt", // note that i put salt here because i have the pbkdf2 string literal below derived with "salt" as the salt..
+            Some("tester1"),
+            None,
+            None,
+            None,
+        );
+        let res = super::read_and_decrypt(&mut conn, "mymasterpassword", "salt");
+        assert_eq!(res.unwrap().username.unwrap(), "tester1");
     }
 }
