@@ -93,10 +93,10 @@ pub fn encrypt_and_insert(
     connection: &mut SqliteConnection,
     master_password: &str,
     new_name: &str,
-    new_username: Option<&str>,
-    new_email: Option<&str>,
-    new_pass: Option<&str>,
-    new_notes: Option<&str>,
+    new_username: Option<String>,
+    new_email: Option<String>,
+    new_pass: Option<String>,
+    new_notes: Option<String>,
 ) {
     let nonce = Aes256Gcm::generate_nonce(OsRng);
     let encoded_nonce = hex::encode(nonce);
@@ -261,7 +261,7 @@ mod tests {
             &mut conn,
             "mymasterpassword",
             "salt", // note that i put salt here because i have the pbkdf2 string literal below derived with "salt" as the salt..
-            Some("tester1"),
+            Some("tester1".to_string()),
             None,
             None,
             None,
@@ -297,7 +297,7 @@ mod tests {
             &mut conn,
             "mymasterpassword",
             "salt", // note that i put salt here because i have the pbkdf2 string literal below derived with "salt" as the salt..
-            Some("tester1"),
+            Some("tester1".to_string()),
             None,
             None,
             None,
