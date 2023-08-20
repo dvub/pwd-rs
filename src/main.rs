@@ -53,36 +53,63 @@ fn main() {
                 }
                 return;
             }
-
-            let mut new_pass = Some(String::from(""));
-
-            match password_type {
+            let new_pass = match password_type {
                 Some(password_type) => match password_type {
-                    PasswordTypes::Manual { password } => {
-                        new_pass = Some(password);
-                    }
-                    PasswordTypes::Auto { length } => {}
+                    PasswordTypes::Manual { password } => Some(password),
+                    PasswordTypes::Auto { length } => Some("".to_string()),
                 },
-                None => {}
-            }
+                None => None,
+            };
             encrypt_and_insert(
                 &mut conn,
                 &args.master_password,
                 &name,
-                username.as_deref(),
-                email.as_deref(),
-                new_pass.as_deref(),
-                notes.as_deref(),
+                username,
+                email,
+                new_pass,
+                notes,
             );
             println!("Successfully inserted a new password!!");
         }
-        args::PasswordCommands::Get { name } => {
+        args::PasswordCommands::Get {
+            name,
+            email,
+            username,
+            pass,
+            notes,
+            all,
+        } => {
             let result = read_and_decrypt(&mut conn, &args.master_password, &name);
             match result {
                 Some(found_password) => {
-                    println!("Found a password with that name! Decrypting now..");
-                    println!("{}", found_password.name);
-                    println!("{}", found_password.pass.unwrap());
+                    println!("Found a password with that name! Decrypting...");
+                    if all {
+                        println!("Reading all data:");
+                        println!(" --- Name: {} --- ", found_password.name);
+
+                        let data = vec![
+                            found_password.email,
+                            found_password.username,
+                            found_password.pass,
+                            found_password.notes,
+                        ];
+                        
+                        for (index, d) in data.iter().enumerate() {
+                            match d {
+                                Some(m) => {
+                                    let name = match index {
+                                        0 => "Email",
+                                        1 => "Username",
+                                        2 => "Password",
+                                        3 => "Notes",
+                                        _ => "",
+                                    };
+                                    println!("{}: {}", name, m);
+                                }
+                                None => {}
+                            }
+                        }
+                    }
                 }
                 None => {
                     println!("No password was found with that name.. :[");
