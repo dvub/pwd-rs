@@ -1,4 +1,4 @@
-use crate::crypto::{hash, encrypt};
+use crate::crypto::{encrypt, hash};
 use crate::models::{NewPassword, Password, PasswordForm};
 use crate::schema::password::dsl::*;
 use aes_gcm::aead::OsRng;
@@ -47,6 +47,7 @@ pub fn update_password(connection: &mut SqliteConnection, term: &str, form: Pass
         .execute(connection)
         .expect("error updating password");
 }
+
 pub fn check_master_exists(connection: &mut SqliteConnection) -> bool {
     let res = get_password(connection, MASTER_KEYWORD);
     match res {
@@ -82,8 +83,6 @@ pub fn insert_master_password(connection: &mut SqliteConnection, data: &[u8]) {
         .expect("error inserting master password");
 }
 
-
-
 pub fn encrypt_and_insert_password(
     connection: &mut SqliteConnection,
     master_password: &str,
@@ -95,12 +94,12 @@ pub fn encrypt_and_insert_password(
 ) {
     let nonce = Aes256Gcm::generate_nonce(OsRng);
     let encoded_nonce = hex::encode(nonce);
-    
+
     let encrypted_username = encrypt(master_password, new_username, &nonce, new_name);
     let encrypted_email = encrypt(master_password, new_email, &nonce, new_name);
     let encrypted_pass = encrypt(master_password, new_pass, &nonce, new_name);
     let encrypted_notes = encrypt(master_password, new_notes, &nonce, new_name);
-    
+
     let new_password = NewPassword {
         name: new_name,
         username: encrypted_username.as_deref(),
@@ -115,6 +114,7 @@ pub fn encrypt_and_insert_password(
 #[cfg(test)]
 mod tests {
     use crate::schema::password::dsl::*;
+    use aes_gcm::aead::{generic_array::GenericArray, Aead};
     use diesel::prelude::*;
     use diesel::{Connection, SqliteConnection};
     use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
@@ -202,5 +202,44 @@ mod tests {
         super::insert_master_password(&mut conn, b"mymasterpassword");
         assert!(!super::authenticate(&mut conn, b"randomguess"));
     }
+    #[test]
+    fn encrypt_and_insert_password() {
+        use crate::models::Password;
+        use aes_gcm::{Aes256Gcm, Key, KeyInit};
 
+        let mut conn = establish_in_memory_connection();
+        // this is the function we are testing
+        super::encrypt_and_insert_password(
+            &mut conn,
+            "mymasterpassword",
+            "salt", // note that i put salt here because i have the pbkdf2 string literal below derived with "salt" as the salt..
+            Some("tester1"),
+            None,
+            None,
+            None,
+        );
+        // here, the goal is to reproduce the same result from the above function,
+        // ideally this code should use as few of my own functions as possible
+        // idk if this is true, it just seems smart to me
+        let res: Password = password
+            .filter(name.eq("salt"))
+            .select(Password::as_select())
+            .first(&mut conn)
+            .expect("error getting password");
+        //unwrap hell
+        let ciphertext = hex::decode(res.username.unwrap()).unwrap();
+        let decoded = hex::decode(res.aes_nonce).unwrap();
+        let nonce = GenericArray::from_slice(&decoded);
+
+        // i was too lazy to get a new pbkdf2 string literal so i just copied one from crypto.rs tests
+        let key = hex::decode("8f21affeb61e304e7b474229ffeb34309ed31beda58d153bc7ad9da6e9b6184c")
+            .unwrap();
+        let key = Key::<Aes256Gcm>::from_slice(&key);
+        let cipher = Aes256Gcm::new(&key);
+
+        // decrypt here, too lazy to write good expect()'s
+        let val = cipher.decrypt(nonce, ciphertext.as_ref()).expect("ERROR!");
+
+        assert_eq!(val, b"tester1");
+    }
 }
