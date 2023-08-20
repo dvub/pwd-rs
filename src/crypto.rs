@@ -52,7 +52,7 @@ fn derive_key(master_password: impl AsRef<[u8]>, kdf_salt: impl AsRef<[u8]>) -> 
 pub fn encrypt(
     master_password: impl AsRef<[u8]>,
     data: Option<impl AsRef<[u8]>>, // this function should not even take in an optional parameter
-    aes_nonce: &GenericArray<u8, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>>,
+    aes_nonce: impl AsRef<[u8]>,
     kdf_salt: impl AsRef<[u8]>,
 ) -> Option<String> {
     //
@@ -65,7 +65,7 @@ pub fn encrypt(
         Some(val) => {
             // this error should be propagated
             let encrypted = cipher
-                .encrypt(&aes_nonce, val.as_ref())
+                .encrypt(GenericArray::from_slice(aes_nonce.as_ref()), val.as_ref())
                 .expect("Error encrypting!");
             // encoding should not really take place here
             Some(hex::encode(encrypted))
@@ -76,7 +76,7 @@ pub fn encrypt(
 pub fn decrypt(
     master_password: impl AsRef<[u8]>,
     data: Option<impl AsRef<[u8]>>, // this function should not even take in an optional parameter
-    aes_nonce: &GenericArray<u8, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>>,
+    aes_nonce: impl AsRef<[u8]>,
     kdf_salt: impl AsRef<[u8]>,
 ) -> Option<String> {
     //
@@ -87,16 +87,16 @@ pub fn decrypt(
     // same thing with not dealing with options
     match data {
         Some(val) => {
-
             // this error should be propagated
             // just a note: since we're doing all this decode+encode nonsense
             // decoding has to happen first because that's how the data is read from the database,
             // then once it's been decoded we can decrypt the data
             let decoded = hex::decode(val).expect("error decoding data");
+            let decoded_nonce = hex::decode(aes_nonce).expect("error decoding nonce.");
             let decrypted = cipher
-                .decrypt(&aes_nonce, decoded.as_ref())
+                .decrypt(GenericArray::from_slice(&decoded_nonce), decoded.as_ref())
                 .expect("Error decrypting!"); // same thing here
-            // and same thing here...
+                                              // and same thing here...
             Some(String::from_utf8(decrypted).expect("Error converting.."))
         }
         None => None,
@@ -130,9 +130,8 @@ mod tests {
 
         // sourced from: https://neurotechnics.com/tools/pbkdf2-test
         // hex::decode() will decode into an array and then create an encryption key for us to compare to
-        let key =
-            hex::decode("8f21affeb61e304e7b474229ffeb34309ed31beda58d153bc7ad9da6e9b6184c")
-                .unwrap();
+        let key = hex::decode("8f21affeb61e304e7b474229ffeb34309ed31beda58d153bc7ad9da6e9b6184c")
+            .unwrap();
         // manually creating this key/cipher
         let key = Key::<Aes256Gcm>::from_slice(&key);
         let cipher = Aes256Gcm::new(&key);
@@ -145,18 +144,22 @@ mod tests {
     #[test]
     fn decrypt() {
         let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
-        let key =
-            hex::decode("8f21affeb61e304e7b474229ffeb34309ed31beda58d153bc7ad9da6e9b6184c")
-                .unwrap();
+        let key = hex::decode("8f21affeb61e304e7b474229ffeb34309ed31beda58d153bc7ad9da6e9b6184c")
+            .unwrap();
         // manually creating this key/cipher
         let key = Key::<Aes256Gcm>::from_slice(&key);
         let cipher = Aes256Gcm::new(&key);
 
-
         let ciphertext = hex::encode(cipher.encrypt(&nonce, b"data".as_ref()).unwrap());
 
         // here's the function we're testing
-        let result = super::decrypt("mymasterpassword", Some(ciphertext), &nonce, "salt").unwrap();
+        let result = super::decrypt(
+            "mymasterpassword",
+            Some(ciphertext),
+            hex::encode(nonce),
+            "salt",
+        )
+        .unwrap();
 
         assert_eq!(result, "data");
     }
