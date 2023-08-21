@@ -22,7 +22,7 @@ fn main() {
     let master_exists = check_master_exists(&mut conn);
 
     if !master_exists {
-        println!("Master record does not exist. Run 'pwd-rs -P <master_password> --name .master' to create a master record.");
+        println!("Master record does not exist. Run 'pwd-rs -P <master_password> add -N .master' to create a master record.");
         return;
     }
 
@@ -94,8 +94,8 @@ fn main() {
                             found_password.notes,
                         ];
                         
-                        for (index, d) in data.iter().enumerate() {
-                            match d {
+                        for (index, field) in data.iter().enumerate() {
+                            match field {
                                 Some(m) => {
                                     let name = match index {
                                         0 => "Email",
