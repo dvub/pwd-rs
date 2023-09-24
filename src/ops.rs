@@ -52,8 +52,8 @@ pub fn update_password(connection: &mut SqliteConnection, term: &str, form: Pass
         .expect("error updating password");
 }
 
-pub fn check_master_exists(connection: &mut SqliteConnection) -> bool {
-    let res = get_password(connection, MASTER_KEYWORD);
+pub fn check_password_exists(connection: &mut SqliteConnection, term: &str) -> bool {
+    let res = get_password(connection, term);
     match res {
         Some(_) => true,
         None => false,
