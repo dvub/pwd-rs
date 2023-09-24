@@ -7,7 +7,7 @@ use args::PwdArgs;
 use clap::Parser;
 use ops::*;
 
-use ops::{check_master_exists, insert_master_password};
+use ops::{check_password_exists, insert_master_password};
 
 use crate::args::{PasswordCommands, PasswordTypes};
 
@@ -21,14 +21,11 @@ fn main() {
     let mut conn = establish_connection();
 
     println!("Found password database!");
-    println!();
 
     println!("Checking for master record...");
-    let master_exists = check_master_exists(&mut conn);
-    println!();
+    let master_exists = check_password_exists(&mut conn, MASTER_KEYWORD);
 
     println!("Found master record!");
-    println!();
 
     if !authenticate(&mut conn, args.master_password.as_bytes()) {
         println!("Incorrect master password.");
@@ -64,6 +61,13 @@ fn main() {
             notes,
             password_type,
         } => {
+            if check_password_exists(&mut conn, name.as_str()) {
+                println!(
+                    "Password with this name already exists. Modify or delete existing password. Exiting..."
+                );
+                return;
+            }
+
             let new_pass = match password_type {
                 Some(password_type) => match password_type {
                     PasswordTypes::Manual { password } => Some(password),
@@ -71,6 +75,7 @@ fn main() {
                 },
                 None => None,
             };
+
             encrypt_and_insert(
                 &mut conn,
                 &args.master_password,
