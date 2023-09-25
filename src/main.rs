@@ -51,12 +51,13 @@ fn main() {
                 if name == ops::MASTER_KEYWORD {
                     if exists {
                         error("master record already exists");
+                        return;
                     } else {
                         let _ = insert_master_password(&mut conn, args.master_password.as_bytes());
                         success("created new master record");
+                        return;
                     }
                 }
-                return;
             }
             if !exists {
                 error("\r No master record exists. Use pwd-rs -P <your-master-password> add -N master.");
@@ -79,8 +80,6 @@ fn main() {
     }
 
     success("authenticated using master record");
-    println!();
-
     // a lot of checks and authentication is finall done,
     // now we have to get to actually doing the command the user wants
 
@@ -130,9 +129,9 @@ fn main() {
             match result {
                 Ok(v) => match v {
                     Some(found_password) => {
-                        println!("Found a password with that name! Decrypting...");
-                        println!("Reading all data:");
-                        println!(" --- Name: {} --- ", found_password.name);
+                        success("found a password");
+                        println!("");
+                        println!(" --- {}: {} --- ", "name".bold(), found_password.name);
                         let data = vec![
                             found_password.email,
                             found_password.username,
@@ -143,20 +142,21 @@ fn main() {
                             match field {
                                 Some(m) => {
                                     let name = match index {
-                                        0 => "Email",
-                                        1 => "Username",
-                                        2 => "Password",
-                                        3 => "Notes",
-                                        _ => "",
+                                        0 => "email".bold().bright_red(),
+                                        1 => "username".bold(),
+                                        2 => "password".bold().red(),
+                                        3 => "notes".bold(),
+                                        _ => "".bold(),
                                     };
                                     println!("{}: {}", name, m);
                                 }
                                 None => {}
                             }
                         }
+                        println!("");
                     }
                     None => {
-                        println!("No password was found with that name.. :[");
+                        error("no password was found with that name");
                     }
                 },
                 Err(_) => error("error reading password"),
