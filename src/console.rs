@@ -1,7 +1,6 @@
 use colored::Colorize;
 pub fn checking(message: &str) {
-    print!("{}: {}", "checking".yellow().bold(), message);
-    print!("\r");
+    println!("{}: {}", "checking".yellow().bold(), message);
 }
 pub fn success(message: &str) {
     println!("{}: {}", "success".green().bold(), message);
