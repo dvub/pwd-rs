@@ -59,13 +59,9 @@ fn main() {
                     }
                 }
             }
-            if !exists {
-                error("\r No master record exists. Use pwd-rs -P <your-master-password> add -N master.");
-                return;
-            }
         }
         Err(_) => {
-            error("error checking master record");
+            error("no master record found");
             return;
         }
     }
@@ -80,6 +76,7 @@ fn main() {
     }
 
     success("authenticated using master record");
+    println!("");
     // a lot of checks and authentication is finall done,
     // now we have to get to actually doing the command the user wants
 
@@ -138,6 +135,10 @@ fn main() {
                             found_password.pass,
                             found_password.notes,
                         ];
+                        if data.iter().all(|field| field.is_none()) {
+                            println!("");
+                            println!("no other data found for this record");
+                        }
                         for (index, field) in data.iter().enumerate() {
                             match field {
                                 Some(m) => {
@@ -153,7 +154,6 @@ fn main() {
                                 None => {}
                             }
                         }
-                        println!("");
                     }
                     None => {
                         error("no password was found with that name");
@@ -166,6 +166,7 @@ fn main() {
             println!("Listing all passwords.");
         }
     }
+    println!("");
 }
 
 #[test]
