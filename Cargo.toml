@@ -15,3 +15,4 @@ hex-literal = "0.4.1"
 hex = "0.4.3"
 pbkdf2 = "0.12.2"
 clap = { version = "4.4.4", features = ["derive"] }
+colored = "2.0.4"
