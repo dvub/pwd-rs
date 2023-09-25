@@ -36,13 +36,14 @@ pub enum PasswordCommands {
         password_type: Option<PasswordTypes>,
     },
 
-    /// Search for an existing password
+    /// Search for an existing password by name. If found, prints the password's data.
     Get {
         /// The password name to search for
         #[arg(short = 'N', long)]
         name: String,
     },
-    List
+    /// Prints a list of all passwords. This command will not print out specific data for each password, only the passwords' names.
+    List,
 }
 #[derive(Subcommand)]
 pub enum PasswordTypes {
