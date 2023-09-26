@@ -46,23 +46,29 @@ pub fn get_password(
         .optional()
 }
 // delete a password given a name, again, not generic.
-pub fn delete_password(connection: &mut SqliteConnection, term: &str) {
-    let _ = diesel::delete(password.filter(name.eq(term))).execute(connection);
+pub fn delete_password(
+    connection: &mut SqliteConnection,
+    term: &str,
+) -> Result<usize, diesel::result::Error> {
+    diesel::delete(password.filter(name.eq(term))).execute(connection)
 }
 
-pub fn update_password(connection: &mut SqliteConnection, term: &str, form: PasswordForm) {
-    let _ = diesel::update(password.filter(name.eq(term)))
+pub fn update_password(
+    connection: &mut SqliteConnection,
+    term: &str,
+    form: PasswordForm,
+) -> Result<usize, diesel::result::Error> {
+    diesel::update(password.filter(name.eq(term)))
         .set(form)
         .execute(connection)
-        .expect("error updating password");
 }
 
 pub fn check_password_exists(
     connection: &mut SqliteConnection,
     term: &str,
 ) -> Result<bool, diesel::result::Error> {
-    let res = get_password(connection, term);
-    match res {
+    let result = get_password(connection, term);
+    match result {
         Ok(values) => match values {
             Some(_) => Ok(true),
             None => Ok(false),
@@ -119,7 +125,7 @@ pub fn encrypt_and_insert(
     new_email: Option<String>,
     new_pass: Option<String>,
     new_notes: Option<String>,
-) {
+) -> Result<usize, diesel::result::Error> {
     let nonce = Aes256Gcm::generate_nonce(OsRng);
     let encoded_nonce = hex::encode(nonce);
     // iteration??
@@ -141,7 +147,7 @@ pub fn encrypt_and_insert(
         notes: encrypted_values[3].as_deref(),
         aes_nonce: &encoded_nonce,
     };
-    let _ = insert_password(connection, new_password);
+    insert_password(connection, new_password)
 }
 
 // this function will search by the term parameter for a password, and decrypt the fields if the password is found.
@@ -186,7 +192,14 @@ pub fn read_and_decrypt(
         Err(e) => Err(e),
     }
 }
-
+/*
+pub fn get_all(connection: &mut SqliteConnection) -> Result<Vec<Password>, diesel::result::Error> {
+    password
+        .select(name)
+        .select(Password::as_select())
+        .execute(connection)
+}
+*/
 // tests
 // thank god i can use unwrap or expect or whatever shit fuckery i want down here
 
@@ -257,7 +270,7 @@ mod tests {
         use crate::models::PasswordForm;
         let mut conn = establish_in_memory_connection();
         insert_test_data(&mut conn);
-        super::update_password(
+        let _ = super::update_password(
             &mut conn,
             "test",
             PasswordForm {
@@ -291,7 +304,7 @@ mod tests {
 
         let mut conn = establish_in_memory_connection();
         // this is the function we are testing
-        super::encrypt_and_insert(
+        let _ = super::encrypt_and_insert(
             &mut conn,
             "mymasterpassword",
             "salt", // note that i put salt here because i have the pbkdf2 string literal below derived with "salt" as the salt..
@@ -327,7 +340,7 @@ mod tests {
     #[test]
     fn read_and_decrypt() {
         let mut conn = establish_in_memory_connection();
-        super::encrypt_and_insert(
+        let _ = super::encrypt_and_insert(
             &mut conn,
             "mymasterpassword",
             "salt", // note that i put salt here because i have the pbkdf2 string literal below derived with "salt" as the salt..
