@@ -124,7 +124,8 @@ pub fn encrypt_and_insert(
     let encoded_nonce = hex::encode(nonce);
     // iteration??
     // personally i think this is kind of cool, but it's probably not idiomatic AT ALL..
-    let params = vec![new_username, new_email, new_pass, new_notes];
+
+    let params = [new_username, new_email, new_pass, new_notes];
     let mut encrypted_values = Vec::<Option<String>>::new();
     for param in params {
         encrypted_values.push(encrypt(master_password, param, &nonce, new_name));
@@ -155,9 +156,9 @@ pub fn read_and_decrypt(
         Ok(value) => {
             match value {
                 Some(value) => {
-                    let params = vec![value.username, value.email, value.pass, value.notes];
+                    let fields = Password::as_array(&value);
                     let mut decrypted = Vec::<Option<String>>::new();
-                    for param in params {
+                    for param in fields {
                         decrypted.push(decrypt(
                             master_password,
                             param,

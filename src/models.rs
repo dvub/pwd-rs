@@ -1,5 +1,5 @@
-use diesel::prelude::*;
 use crate::schema::password;
+use diesel::prelude::*;
 // this is the main struct that provides the table and columns
 // suitable for selects and queries, made evident by the derivations
 #[derive(Queryable, Selectable)]
@@ -14,6 +14,20 @@ pub struct Password {
     pub notes: Option<String>,
     pub aes_nonce: String,
 }
+
+impl Password {
+    pub fn as_array(&self) -> [Option<String>; 6] {
+        [
+            Some(self.name.clone()),
+            self.username.clone(),
+            self.email.clone(),
+            self.pass.clone(),
+            self.notes.clone(),
+            Some(self.aes_nonce.clone()),
+        ]
+    }
+}
+
 // struct to insert a new password
 // does NOT include id, as id is auto incremented and should almost never be manually set
 #[derive(Insertable)]
