@@ -12,6 +12,7 @@ use ops::*;
 use ops::{check_password_exists, insert_master_password};
 
 use crate::args::{PasswordCommands, PasswordTypes};
+use crate::models::Password;
 
 fn main() {
     let args = PwdArgs::parse();
@@ -43,18 +44,24 @@ fn main() {
 
     // this is some logic to check create a new master record if one doesn't already exist
     // the logic for this ended up being really complicated
-    checking("master record");
+    checking("master record?");
     let master_exists = check_password_exists(&mut conn, MASTER_KEYWORD);
     match master_exists {
-        Ok(exists) => {
+        Ok(master) => {
             if let PasswordCommands::Add { ref name, .. } = args.command {
                 if name == ops::MASTER_KEYWORD {
-                    if exists {
+                    if master {
                         error("master record already exists");
                         return;
                     } else {
-                        let _ = insert_master_password(&mut conn, args.master_password.as_bytes());
-                        success("created new master record");
+                        match insert_master_password(&mut conn, args.master_password.as_bytes()) {
+                            Ok(_) => {
+                                success("created new master record");
+                            }
+                            Err(_) => {
+                                error("error creating new master password");
+                            }
+                        }
                         return;
                     }
                 }
@@ -67,7 +74,7 @@ fn main() {
     }
     success("found master record");
 
-    checking("authenticating with master record");
+    checking("authenticating with master record...");
     if let Ok(t) = authenticate(&mut conn, args.master_password.as_bytes()) {
         if !t {
             error("incorrect master password");
@@ -88,17 +95,15 @@ fn main() {
             notes,
             password_type,
         } => {
-            checking("password name is available");
+            checking("password name is available?");
             match check_password_exists(&mut conn, name.as_str()) {
-                Ok(res) => {
-                    if res == true {
+                Ok(master) => {
+                    if master == true {
                         error("password with this name already exists \n\t modify or delete existing password instead");
                         return;
                     }
                 }
-                Err(_) => {
-                    error("error checking password exists");
-                }
+                Err(_) => error("error checking if password exists"),
             }
             success("password with this name is available");
 
@@ -110,7 +115,7 @@ fn main() {
                 None => None,
             };
 
-            encrypt_and_insert(
+            match encrypt_and_insert(
                 &mut conn,
                 &args.master_password,
                 &name,
@@ -118,8 +123,10 @@ fn main() {
                 email,
                 new_pass,
                 notes,
-            );
-            success("inserted new password into SQLite database");
+            ) {
+                Ok(_) => success("inserted new password into SQLite database"),
+                Err(_) => error("there was an error inserting the password"),
+            }
         }
         args::PasswordCommands::Get { name } => {
             let result = read_and_decrypt(&mut conn, &args.master_password, &name);
@@ -129,16 +136,13 @@ fn main() {
                         success("found a password");
                         println!("");
                         println!(" --- {}: {} --- ", "name".bold(), found_password.name);
-                        let data = vec![
-                            found_password.email,
-                            found_password.username,
-                            found_password.pass,
-                            found_password.notes,
-                        ];
+                        let data = Password::as_array(&found_password);
+                        // FP (ftw) to check if the array of password fields contains only `none` and print a message
                         if data.iter().all(|field| field.is_none()) {
                             println!("");
                             println!("no other data found for this record");
                         }
+
                         for (index, field) in data.iter().enumerate() {
                             match field {
                                 Some(m) => {
