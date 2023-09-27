@@ -34,6 +34,9 @@ fn main() {
     // mostly checking master record, connecting to database, etc.
 
     // create connection
+    checking(
+        "connecting to local SQLite database a a a aa a a a a asd asjd ha slkd hasljkdh aslkjdh ",
+    );
     let conn = establish_connection();
 
     let Ok(mut conn) = conn else {
@@ -166,9 +169,18 @@ fn main() {
                 Err(_) => error("error reading password"),
             }
         }
-        PasswordCommands::List => {
-            println!("Listing all passwords.");
-        }
+        PasswordCommands::List => match get_all(&mut conn) {
+            Ok(passwords) => {
+                println!(" --- all passwords (name only) --- ");
+
+                for p in passwords {
+                    println!("{}", p.name);
+                }
+            }
+            Err(_) => {
+                error("there was an error retrieving all passwords");
+            }
+        },
     }
     println!("");
 }
