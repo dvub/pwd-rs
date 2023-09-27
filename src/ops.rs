@@ -192,14 +192,11 @@ pub fn read_and_decrypt(
         Err(e) => Err(e),
     }
 }
-/*
+
 pub fn get_all(connection: &mut SqliteConnection) -> Result<Vec<Password>, diesel::result::Error> {
-    password
-        .select(name)
-        .select(Password::as_select())
-        .execute(connection)
+    password.load(connection)
 }
-*/
+
 // tests
 // thank god i can use unwrap or expect or whatever shit fuckery i want down here
 
