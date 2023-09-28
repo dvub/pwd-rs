@@ -1,13 +1,37 @@
-use std::io::Write;
-
 use colored::Colorize;
+
+use crate::models::Password;
 pub fn checking(message: &str) {
-    print!("{}: {}", "checking".yellow().bold(), message);
-    std::io::stdout().flush().unwrap();
+    println!("{}: {}", "checking".yellow().bold(), message);
 }
 pub fn success(message: &str) {
-    println!("\x1B[1A\x1B[K{}: {}", "success".green().bold(), message);
+    println!("{}: {}", "success".green().bold(), message);
 }
 pub fn error(message: &str) {
     println!("{}: {}", "error".red().bold(), message);
+}
+pub fn print_pass(password: Password) {
+    println!(" --- {}: {} --- ", "name".bold(), password.name);
+    let data = Password::as_array(&password);
+    // FP (ftw) to check if the array of password fields contains only `none` and print a message
+    if data.iter().all(|field| field.is_none()) {
+        println!("");
+        println!("no other data found for this record");
+    }
+
+    for (index, field) in data.iter().enumerate() {
+        match field {
+            Some(m) => {
+                let name = match index {
+                    0 => "email".bold().bright_red(),
+                    1 => "username".bold(),
+                    2 => "password".bold().red(),
+                    3 => "notes".bold(),
+                    _ => "".bold(),
+                };
+                println!("{}: {}", name, m);
+            }
+            None => {}
+        }
+    }
 }

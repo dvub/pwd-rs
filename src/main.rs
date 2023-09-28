@@ -1,4 +1,4 @@
-mod args;
+pub mod args;
 pub mod console;
 pub mod crypto;
 pub mod models;
@@ -12,7 +12,7 @@ use ops::*;
 use ops::{check_password_exists, insert_master_password};
 
 use crate::args::{PasswordCommands, PasswordTypes};
-use crate::models::Password;
+use crate::console::print_pass;
 
 fn main() {
     let args = PwdArgs::parse();
@@ -127,7 +127,9 @@ fn main() {
                 new_pass,
                 notes,
             ) {
-                Ok(_) => success("inserted new password into SQLite database"),
+                Ok(_) => {
+                    success("inserted new password into SQLite database");
+                }
                 Err(_) => error("there was an error inserting the password"),
             }
         }
@@ -138,29 +140,7 @@ fn main() {
                     Some(found_password) => {
                         success("found a password");
                         println!("");
-                        println!(" --- {}: {} --- ", "name".bold(), found_password.name);
-                        let data = Password::as_array(&found_password);
-                        // FP (ftw) to check if the array of password fields contains only `none` and print a message
-                        if data.iter().all(|field| field.is_none()) {
-                            println!("");
-                            println!("no other data found for this record");
-                        }
-
-                        for (index, field) in data.iter().enumerate() {
-                            match field {
-                                Some(m) => {
-                                    let name = match index {
-                                        0 => "email".bold().bright_red(),
-                                        1 => "username".bold(),
-                                        2 => "password".bold().red(),
-                                        3 => "notes".bold(),
-                                        _ => "".bold(),
-                                    };
-                                    println!("{}: {}", name, m);
-                                }
-                                None => {}
-                            }
-                        }
+                        print_pass(found_password);
                     }
                     None => {
                         error("no password was found with that name");
@@ -173,8 +153,8 @@ fn main() {
             Ok(passwords) => {
                 println!(" --- all passwords (name only) --- ");
 
-                for p in passwords {
-                    println!("{}", p.name);
+                for (i, p) in passwords.iter().enumerate() {
+                    println!("{}. {}", i + 1, p.name);
                 }
             }
             Err(_) => {
