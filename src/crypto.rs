@@ -1,5 +1,4 @@
 // blehhhh
-
 use aes_gcm::{
     aead::{
         consts::{B0, B1},
@@ -95,9 +94,8 @@ pub fn decrypt(
             let decoded_nonce = hex::decode(aes_nonce).expect("error decoding nonce.");
             let decrypted = cipher
                 .decrypt(GenericArray::from_slice(&decoded_nonce), decoded.as_ref())
-                .expect("Error decrypting!"); // same thing here
-                                              // and same thing here...
-            Some(String::from_utf8(decrypted).expect("Error converting.."))
+                .expect("Error decrypting!");
+            Some(String::from_utf8(decrypted).expect("Error converting to string"))
         }
         None => None,
     }
@@ -106,6 +104,7 @@ pub fn decrypt(
 #[cfg(test)]
 mod tests {
     use aes_gcm::{aead::Aead, aead::OsRng, AeadCore, Aes256Gcm, Key, KeyInit};
+
     #[test]
     fn sha512() {
         // the string literal came from an online hasher to compare results to

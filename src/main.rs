@@ -9,7 +9,6 @@ use clap::Parser;
 use colored::Colorize;
 use console::{checking, error, success};
 use ops::*;
-use ops::{check_password_exists, insert_master_password};
 
 use crate::args::{PasswordCommands, PasswordTypes};
 use crate::console::print_pass;
