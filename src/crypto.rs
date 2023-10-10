@@ -85,16 +85,16 @@ pub fn decrypt(
     let cipher = Aes256Gcm::new(&key);
     // same thing with not dealing with options
     match data {
-        Some(val) => {
+        Some(data) => {
             // this error should be propagated
             // just a note: since we're doing all this decode+encode nonsense
             // decoding has to happen first because that's how the data is read from the database,
             // then once it's been decoded we can decrypt the data
-            let decoded = hex::decode(val).expect("error decoding data");
+            let decoded = hex::decode(data).expect("error decoding data");
             let decoded_nonce = hex::decode(aes_nonce).expect("error decoding nonce.");
             let decrypted = cipher
                 .decrypt(GenericArray::from_slice(&decoded_nonce), decoded.as_ref())
-                .expect("Error decrypting!");
+                .expect("error decrypting");
             Some(String::from_utf8(decrypted).expect("Error converting to string"))
         }
         None => None,

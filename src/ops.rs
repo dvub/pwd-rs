@@ -336,8 +336,7 @@ mod tests {
 
         assert_eq!(val, b"tester1");
     }
-    // test stopped passing so
-    /*
+
     #[test]
     fn read_and_decrypt() {
         let mut conn = establish_in_memory_connection();
@@ -352,7 +351,7 @@ mod tests {
             None,
             None,
         )
-        .unwrap();
+        .expect("error inserting password");
         let res = super::read_and_decrypt(&mut conn, master, term).expect("error decrypting");
         assert_eq!(
             res.expect("error: was None")
@@ -361,5 +360,4 @@ mod tests {
             "tester1".to_string()
         );
     }
-    */
 }

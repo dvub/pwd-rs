@@ -16,8 +16,8 @@ pub struct Password {
 }
 
 impl Password {
-    pub fn as_array(&self) -> [Option<String>; 6] {
-        [
+    pub fn as_array(&self) -> Vec<Option<String>> {
+        vec![
             Some(self.name.clone()),
             self.username.clone(),
             self.email.clone(),

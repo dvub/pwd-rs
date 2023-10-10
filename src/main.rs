@@ -33,9 +33,7 @@ fn main() {
     // mostly checking master record, connecting to database, etc.
 
     // create connection
-    checking(
-        "connecting to local SQLite database a a a aa a a a a asd asjd ha slkd hasljkdh aslkjdh ",
-    );
+    checking("connecting to local SQLite database");
     let conn = establish_connection();
 
     let Ok(mut conn) = conn else {
@@ -69,8 +67,9 @@ fn main() {
                 }
             }
         }
-        Err(_) => {
+        Err(e) => {
             error("no master record found");
+            println!("{}", e);
             return;
         }
     }
