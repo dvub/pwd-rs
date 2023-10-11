@@ -103,13 +103,14 @@ pub fn decrypt(
 }
 
 pub fn generate_password(length: usize) -> String {
-    let mut key = Vec::with_capacity(length);
+    let mut key = vec![0u8; length];
     OsRng.fill_bytes(&mut key);
-    let mut st = String::with_capacity(length);
+    let mut str = String::new();
     for random_byte in key {
-        st.push(random_byte as char);
+        println!("{}", random_byte);
+        str.push(random_byte as char);
     }
-    st
+    str
 }
 
 #[cfg(test)]
