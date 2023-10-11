@@ -3,17 +3,16 @@ use aes_gcm::{
     aead::{
         consts::{B0, B1},
         generic_array::GenericArray,
-        rand_core::{OsRng, RngCore},
     },
     aead::{Aead, KeyInit},
     Aes256Gcm, Key,
 };
 use pbkdf2::pbkdf2_hmac;
+use rand::{rngs::OsRng, Rng};
 use sha2::{
     digest::typenum::{UInt, UTerm},
     Digest, Sha256,
 };
-
 /// Hashes `text` using `Sha256`.
 pub fn hash(
     text: &[u8],
@@ -101,17 +100,27 @@ pub fn decrypt(
         None => None,
     }
 }
-
+/// generates a password given a length using randomness from the OS
 pub fn generate_password(length: usize) -> String {
-    let mut key = vec![0u8; length];
-    OsRng.fill_bytes(&mut key);
+    let characters: Vec<char> = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()~`-=_+[]{}\\|;':\",.<>/?".chars().collect();
+    let len = characters.len();
     let mut str = String::new();
-    for random_byte in key {
-        println!("{}", random_byte);
-        str.push(random_byte as char);
+    for _ in 0..length {
+        let index = OsRng.gen_range(0..len);
+        str.push(*characters.get(index).expect("error indexing character vec"));
     }
     str
 }
+/*
+
+fn generate_password(length: usize) -> String {
+    static charset: Vec<char> = ('A'..='Z').chain('a'..='z').collect();
+    let mut rng = rand::thread_rng();
+    (0..length)
+        .map(|_| charset[rng.gen_range(0, charset.len())])
+        .collect()
+}
+*/
 
 #[cfg(test)]
 mod tests {

@@ -42,8 +42,26 @@ pub enum PasswordCommands {
         #[arg(short = 'N', long)]
         name: String,
     },
-    /// Prints a list of all passwords. This command will not print out specific data for each password, only the passwords' names.
+    /// Prints a list of all passwords. This command will only print password names.
     List,
+    /// Updates a password
+    Update {
+        /// Password name
+        #[arg(short = 'N', long)]
+        name: String,
+        /// Optional email address
+        #[arg(short, long)]
+        email: Option<String>,
+        /// Optional username
+        #[arg(short, long)]
+        username: Option<String>,
+        /// Optional notes
+        #[arg(short = 'n', long)]
+        notes: Option<String>,
+        /// Optional method of password generation
+        #[command(subcommand)]
+        password_type: Option<PasswordTypes>,
+    },
 }
 #[derive(Subcommand)]
 pub enum PasswordTypes {

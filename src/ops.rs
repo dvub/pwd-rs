@@ -128,23 +128,18 @@ pub fn encrypt_and_insert(
 ) -> Result<usize, diesel::result::Error> {
     let nonce = Aes256Gcm::generate_nonce(OsRng);
     let encoded_nonce = hex::encode(nonce);
-    // iteration??
-    // personally i think this is kind of cool, but it's probably not idiomatic AT ALL..
 
-    let params = [new_username, new_email, new_pass, new_notes];
-    let mut encrypted_values = Vec::<Option<String>>::new();
-    for param in params {
-        encrypted_values.push(encrypt(master_password, param, &nonce, new_name));
-    }
-    // there could be a lot of problems here, like if the order isn't linear like this
-    // but since this is all just internal, as long as *I* don't fuck it up it should be fine
+    let encrypted_username = encrypt(master_password, new_username, &nonce, new_name);
+    let encrypted_email = encrypt(master_password, new_email, &nonce, new_name);
+    let encrypted_password = encrypt(master_password, new_pass, &nonce, new_name);
+    let encrypted_notes = encrypt(master_password, new_notes, &nonce, new_name);
 
     let new_password = NewPassword {
         name: new_name,
-        username: encrypted_values[0].as_deref(),
-        email: encrypted_values[1].as_deref(),
-        pass: encrypted_values[2].as_deref(),
-        notes: encrypted_values[3].as_deref(),
+        username: encrypted_username.as_deref(),
+        email: encrypted_email.as_deref(),
+        pass: encrypted_password.as_deref(),
+        notes: encrypted_notes.as_deref(),
         aes_nonce: &encoded_nonce,
     };
     insert_password(connection, new_password)
@@ -159,39 +154,36 @@ pub fn read_and_decrypt(
 ) -> Result<Option<Password>, diesel::result::Error> {
     let pwd = get_password(connection, term);
     match pwd {
-        Ok(value) => {
-            match value {
-                Some(value) => {
-                    let fields = Password::as_array(&value);
-                    let mut decrypted = Vec::<Option<String>>::new();
-                    for param in fields {
-                        decrypted.push(decrypt(
-                            master_password,
-                            param,
-                            &value.aes_nonce,
-                            &value.name,
-                        ));
-                    }
-
-                    // clone() could be pretty inefficient in some cases, so this might have to be rewritten
-                    // todo
-                    // (?)
-                    Ok(Some(Password {
-                        id: value.id,
-                        name: value.name,
-                        username: decrypted[0].clone(),
-                        email: decrypted[1].clone(),
-                        pass: decrypted[2].clone(),
-                        notes: decrypted[3].clone(),
-                        aes_nonce: value.aes_nonce,
-                    }))
-                }
-                None => Ok(None),
+        Ok(value) => match value {
+            Some(value) => {
+                let decrypted_username = decrypt(
+                    master_password,
+                    value.username,
+                    &value.aes_nonce,
+                    &value.name,
+                );
+                let decrypted_email =
+                    decrypt(master_password, value.email, &value.aes_nonce, &value.name);
+                let decrypted_pass =
+                    decrypt(master_password, value.pass, &value.aes_nonce, &value.name);
+                let decrypted_notes =
+                    decrypt(master_password, value.notes, &value.aes_nonce, &value.name);
+                Ok(Some(Password {
+                    id: value.id,
+                    name: value.name,
+                    username: decrypted_username,
+                    email: decrypted_email,
+                    pass: decrypted_pass,
+                    notes: decrypted_notes,
+                    aes_nonce: value.aes_nonce,
+                }))
             }
-        }
+            None => Ok(None),
+        },
         Err(e) => Err(e),
     }
 }
+pub fn encrypt_and_update() {}
 
 pub fn get_all(connection: &mut SqliteConnection) -> Result<Vec<Password>, diesel::result::Error> {
     password.load(connection)

@@ -15,19 +15,6 @@ pub struct Password {
     pub aes_nonce: String,
 }
 
-impl Password {
-    pub fn as_array(&self) -> Vec<Option<String>> {
-        vec![
-            Some(self.name.clone()),
-            self.username.clone(),
-            self.email.clone(),
-            self.pass.clone(),
-            self.notes.clone(),
-            Some(self.aes_nonce.clone()),
-        ]
-    }
-}
-
 // struct to insert a new password
 // does NOT include id, as id is auto incremented and should almost never be manually set
 #[derive(Insertable)]

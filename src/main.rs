@@ -4,6 +4,7 @@ pub mod crypto;
 pub mod models;
 pub mod ops;
 pub mod schema;
+
 use args::PwdArgs;
 use clap::Parser;
 use colored::Colorize;
@@ -13,10 +14,10 @@ use ops::*;
 use crate::args::{PasswordCommands, PasswordTypes};
 use crate::console::print_pass;
 use crate::crypto::generate_password;
+use crate::models::PasswordForm;
 
 fn main() {
     let args = PwdArgs::parse();
-    println!("{}", generate_password(32));
     // make it look pretty :)
     // i took all the time to write this shit code so the final app better look nice
     println!(
@@ -130,7 +131,7 @@ fn main() {
             let new_pass = match password_type {
                 Some(password_type) => match password_type {
                     PasswordTypes::Manual { password } => Some(password),
-                    PasswordTypes::Auto { length: _ } => Some("".to_string()),
+                    PasswordTypes::Auto { length } => Some(generate_password(length)),
                 },
                 None => None,
             };
@@ -164,6 +165,33 @@ fn main() {
                     }
                 },
                 Err(_) => error("error reading password"),
+            }
+        }
+        PasswordCommands::Update {
+            name,
+            username,
+            email,
+            password_type,
+            notes,
+        } => {
+            let new_pass = match password_type {
+                Some(p) => match p {
+                    PasswordTypes::Auto { length } => Some(generate_password(length)),
+                    PasswordTypes::Manual { password } => Some(password),
+                },
+                None => None,
+            };
+            let form = PasswordForm {
+                name: Some(&name),
+                username: username.as_deref(),
+                email: email.as_deref(),
+                pass: new_pass.as_deref(),
+                notes: notes.as_deref(),
+                aes_nonce: &name,
+            };
+            match update_password(&mut conn, &name, form) {
+                Ok(_) => success("updated password"),
+                Err(_) => error("error updating password"),
             }
         }
         PasswordCommands::List => match get_all(&mut conn) {

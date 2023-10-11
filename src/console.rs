@@ -12,7 +12,12 @@ pub fn error(message: &str) {
 }
 pub fn print_pass(password: Password) {
     println!(" --- {}: {} --- ", "name".bold(), password.name);
-    let data = Password::as_array(&password);
+    let data = vec![
+        password.email,
+        password.username,
+        password.pass,
+        password.notes,
+    ];
     // FP (ftw) to check if the array of password fields contains only `none` and print a message
     if data.iter().all(|field| field.is_none()) {
         println!("");
