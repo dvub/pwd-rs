@@ -68,17 +68,35 @@ fn main() {
             }
         }
         Err(e) => {
-            error("no master record found");
-            println!("{}", e);
+            match e {
+                diesel::result::Error::NotFound => {
+                    error("master password not found");
+                }
+                _ => todo!(),
+            }
+            // println!("{}", e);
             return;
         }
     }
     success("found master record");
 
     checking("authenticating with master record...");
-    if let Ok(t) = authenticate(&mut conn, args.master_password.as_bytes()) {
-        if !t {
-            error("incorrect master password");
+    match authenticate(&mut conn, args.master_password.as_bytes()) {
+        Ok(t) => {
+            println!("ASODAS DJASD");
+            if !t {
+                error("incorrect master password");
+                return;
+            }
+        }
+        Err(e) => {
+            match e {
+                diesel::result::Error::NotFound => {
+                    error("master password not found");
+                }
+                _ => todo!(),
+            }
+            // println!("{}", e);
             return;
         }
     }
