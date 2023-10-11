@@ -3,6 +3,7 @@ use aes_gcm::{
     aead::{
         consts::{B0, B1},
         generic_array::GenericArray,
+        rand_core::{OsRng, RngCore},
     },
     aead::{Aead, KeyInit},
     Aes256Gcm, Key,
@@ -99,6 +100,16 @@ pub fn decrypt(
         }
         None => None,
     }
+}
+
+pub fn generate_password(length: usize) -> String {
+    let mut key = Vec::with_capacity(length);
+    OsRng.fill_bytes(&mut key);
+    let mut st = String::with_capacity(length);
+    for random_byte in key {
+        st.push(random_byte as char);
+    }
+    st
 }
 
 #[cfg(test)]

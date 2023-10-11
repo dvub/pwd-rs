@@ -12,9 +12,11 @@ use ops::*;
 
 use crate::args::{PasswordCommands, PasswordTypes};
 use crate::console::print_pass;
+use crate::crypto::generate_password;
 
 fn main() {
     let args = PwdArgs::parse();
+    println!("{}", generate_password(32));
     // make it look pretty :)
     // i took all the time to write this shit code so the final app better look nice
     println!(
@@ -83,7 +85,6 @@ fn main() {
     checking("authenticating with master record...");
     match authenticate(&mut conn, args.master_password.as_bytes()) {
         Ok(t) => {
-            println!("ASODAS DJASD");
             if !t {
                 error("incorrect master password");
                 return;
