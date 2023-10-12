@@ -65,6 +65,13 @@ pub enum PasswordCommands {
         #[command(subcommand)]
         password_type: Option<PasswordTypes>,
     },
+    Delete {
+        /// Password name to delete
+        #[arg(short = 'N', long)]
+        name: String,
+        #[arg(short, long)]
+        confirm: String,
+    },
 }
 #[derive(Subcommand)]
 pub enum PasswordTypes {

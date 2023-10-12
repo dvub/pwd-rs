@@ -1,7 +1,5 @@
 // blehhhh
 
-use std::error::Error;
-
 use aes_gcm::{
     aead::{
         consts::{B0, B1},
@@ -57,7 +55,7 @@ pub fn encrypt(
     data: Option<impl AsRef<[u8]>>, // this function should not even take in an optional parameter
     aes_nonce: impl AsRef<[u8]>,
     kdf_salt: impl AsRef<[u8]>,
-) -> Result<std::option::Option<String>, Box<dyn Error>> {
+) -> std::option::Option<String> {
     //
     let derived_key = derive_key(master_password, kdf_salt);
 
@@ -69,12 +67,12 @@ pub fn encrypt(
         Some(val) => {
             // this error should be propagated
             match cipher.encrypt(GenericArray::from_slice(aes_nonce.as_ref()), val.as_ref()) {
-                Ok(encrypted) => Ok(Some(hex::encode(encrypted))),
+                Ok(encrypted) => Some(hex::encode(encrypted)),
                 Err(_) => todo!(),
             }
             // encoding should not really take place here
         }
-        None => Ok(None),
+        None => None,
     }
 }
 pub fn decrypt(
@@ -152,7 +150,7 @@ mod tests {
         // encrypt and compare!
         let ciphertext = cipher.encrypt(&nonce, b"data".as_ref()).unwrap();
 
-        assert_eq!(res.unwrap().unwrap(), hex::encode(ciphertext));
+        assert_eq!(res.unwrap(), hex::encode(ciphertext));
     }
     #[test]
     fn decrypt() {

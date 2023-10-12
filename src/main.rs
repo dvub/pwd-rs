@@ -208,6 +208,20 @@ fn main() {
                 error("there was an error retrieving all passwords");
             }
         },
+        PasswordCommands::Delete { name, confirm } => {
+            if name != confirm {
+                error("name mismatch, aborting");
+                return;
+            }
+            match delete_password(&mut conn, &name) {
+                Ok(_) => {
+                    success("deleted password");
+                }
+                Err(_) => {
+                    error("there was an error deleting this password");
+                }
+            }
+        }
     }
 }
 
