@@ -14,6 +14,7 @@ use ops::*;
 use crate::args::{PasswordCommands, PasswordTypes};
 use crate::console::print_pass;
 use crate::crypto::generate_password;
+
 fn main() {
     let args = PwdArgs::parse();
     // make it look pretty :)

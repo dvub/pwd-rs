@@ -8,12 +8,16 @@ edition = "2021"
 [dependencies]
 sha2 = "0.10.7"
 aes-gcm = "0.10.3"
+pbkdf2 = "0.12.2"
+rand = "0.8.5"
+
 diesel = { version = "2.1.1", features = ["sqlite"] }
 diesel_migrations = "2.1.0"
 dotenvy = "0.15.7"
+
 hex-literal = "0.4.1"
 hex = "0.4.3"
-pbkdf2 = "0.12.2"
+
 clap = { version = "4.4.4", features = ["derive"] }
 colored = "2.0.4"
-rand = "0.8.5"
+
