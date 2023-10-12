@@ -20,7 +20,7 @@ pub fn print_pass(password: Password) {
     ];
     // FP (ftw) to check if the array of password fields contains only `none` and print a message
     if data.iter().all(|field| field.is_none()) {
-        println!("");
+        println!();
         println!("no other data found for this record");
     }
 

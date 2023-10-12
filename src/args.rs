@@ -49,6 +49,8 @@ pub enum PasswordCommands {
         /// Password name
         #[arg(short = 'N', long)]
         name: String,
+        #[arg(long)]
+        new_name: Option<String>,
         /// Optional email address
         #[arg(short, long)]
         email: Option<String>,

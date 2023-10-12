@@ -58,7 +58,7 @@ pub fn encrypt(
     let derived_key = derive_key(master_password, kdf_salt);
 
     let key = Key::<Aes256Gcm>::from_slice(&derived_key);
-    let cipher = Aes256Gcm::new(&key);
+    let cipher = Aes256Gcm::new(key);
     // same thing with not dealing with options
     match data {
         Some(val) => {
@@ -82,7 +82,7 @@ pub fn decrypt(
     let derived_key = derive_key(master_password, kdf_salt);
 
     let key = Key::<Aes256Gcm>::from_slice(&derived_key);
-    let cipher = Aes256Gcm::new(&key);
+    let cipher = Aes256Gcm::new(key);
     // same thing with not dealing with options
     match data {
         Some(data) => {
@@ -146,7 +146,7 @@ mod tests {
     fn encrypt() {
         let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
         // function to test
-        let res = super::encrypt("mymasterpassword", Some("data"), &nonce, "salt");
+        let res = super::encrypt("mymasterpassword", Some("data"), nonce, "salt");
 
         // sourced from: https://neurotechnics.com/tools/pbkdf2-test
         // hex::decode() will decode into an array and then create an encryption key for us to compare to
@@ -154,7 +154,7 @@ mod tests {
             .unwrap();
         // manually creating this key/cipher
         let key = Key::<Aes256Gcm>::from_slice(&key);
-        let cipher = Aes256Gcm::new(&key);
+        let cipher = Aes256Gcm::new(key);
 
         // encrypt and compare!
         let ciphertext = cipher.encrypt(&nonce, b"data".as_ref()).unwrap();
@@ -168,7 +168,7 @@ mod tests {
             .unwrap();
         // manually creating this key/cipher
         let key = Key::<Aes256Gcm>::from_slice(&key);
-        let cipher = Aes256Gcm::new(&key);
+        let cipher = Aes256Gcm::new(key);
 
         let ciphertext = hex::encode(cipher.encrypt(&nonce, b"data".as_ref()).unwrap());
 

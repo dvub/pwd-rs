@@ -129,10 +129,10 @@ pub fn encrypt_and_insert(
     let nonce = Aes256Gcm::generate_nonce(OsRng);
     let encoded_nonce = hex::encode(nonce);
 
-    let encrypted_username = encrypt(master_password, new_username, &nonce, new_name);
-    let encrypted_email = encrypt(master_password, new_email, &nonce, new_name);
-    let encrypted_password = encrypt(master_password, new_pass, &nonce, new_name);
-    let encrypted_notes = encrypt(master_password, new_notes, &nonce, new_name);
+    let encrypted_username = encrypt(master_password, new_username, nonce, new_name);
+    let encrypted_email = encrypt(master_password, new_email, nonce, new_name);
+    let encrypted_password = encrypt(master_password, new_pass, nonce, new_name);
+    let encrypted_notes = encrypt(master_password, new_notes, nonce, new_name);
 
     let new_password = NewPassword {
         name: new_name,
@@ -183,7 +183,35 @@ pub fn read_and_decrypt(
         Err(e) => Err(e),
     }
 }
-pub fn encrypt_and_update() {}
+pub fn encrypt_and_update(
+    connection: &mut SqliteConnection,
+    master_password: &str,
+    term: &str,
+    new_name: Option<String>,
+    new_username: Option<String>,
+    new_email: Option<String>,
+    new_pass: Option<String>,
+    new_notes: Option<String>,
+) -> Result<usize, diesel::result::Error> {
+    let nonce = Aes256Gcm::generate_nonce(OsRng);
+    let encoded_nonce = hex::encode(nonce);
+
+    let salt = new_name.clone().unwrap_or(term.to_string());
+    let encrypted_username = encrypt(master_password, new_username, nonce, &salt);
+    let encrypted_email = encrypt(master_password, new_email, nonce, &salt);
+    let encrypted_password = encrypt(master_password, new_pass, nonce, &salt);
+    let encrypted_notes = encrypt(master_password, new_notes, nonce, &salt);
+
+    let form = PasswordForm {
+        name: new_name.as_deref(),
+        username: encrypted_username.as_deref(),
+        email: encrypted_email.as_deref(),
+        pass: encrypted_password.as_deref(),
+        notes: encrypted_notes.as_deref(),
+        aes_nonce: &encoded_nonce,
+    };
+    update_password(connection, term, form)
+}
 
 pub fn get_all(connection: &mut SqliteConnection) -> Result<Vec<Password>, diesel::result::Error> {
     password.load(connection)
@@ -321,7 +349,7 @@ mod tests {
         let key = hex::decode("8f21affeb61e304e7b474229ffeb34309ed31beda58d153bc7ad9da6e9b6184c")
             .unwrap();
         let key = Key::<Aes256Gcm>::from_slice(&key);
-        let cipher = Aes256Gcm::new(&key);
+        let cipher = Aes256Gcm::new(key);
 
         // decrypt here, too lazy to write good expect()'s
         let val = cipher.decrypt(nonce, ciphertext.as_ref()).expect("ERROR!");
@@ -350,6 +378,40 @@ mod tests {
                 .username
                 .expect("error: no username"),
             "tester1".to_string()
+        );
+    }
+    #[test]
+    fn encypt_and_update() {
+        let mut conn = establish_in_memory_connection();
+        let master = "mymasterpassword";
+        let term = "abcd";
+        let _ = super::encrypt_and_insert(
+            &mut conn,
+            master,
+            term,
+            Some("tester1".to_string()),
+            None,
+            Some("shitpass".to_string()),
+            None,
+        )
+        .expect("error inserting password");
+
+        // update some different fields and coolness ensues
+        let _ = super::encrypt_and_update(
+            &mut conn,
+            master,
+            term,
+            Some("efgh".to_string()),
+            Some("tester2".to_string()),
+            None,
+            Some("topsecretpassword".to_string()),
+            None,
+        )
+        .unwrap();
+        let res = super::read_and_decrypt(&mut conn, master, "efgh").expect("error decrypting");
+        assert_eq!(
+            res.expect("error: was None").pass.expect("error: no pass"),
+            "topsecretpassword".to_string()
         );
     }
 }

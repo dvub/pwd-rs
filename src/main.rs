@@ -14,8 +14,6 @@ use ops::*;
 use crate::args::{PasswordCommands, PasswordTypes};
 use crate::console::print_pass;
 use crate::crypto::generate_password;
-use crate::models::PasswordForm;
-
 fn main() {
     let args = PwdArgs::parse();
     // make it look pretty :)
@@ -29,9 +27,9 @@ fn main() {
    |_|   \\_/\\_/\\__,_|   |_| /__/"
             .bold()
     );
-    println!("");
+    println!();
     println!("{} {}!", "Welcome to".italic(), "pwd-rs".bold().green());
-    println!("");
+    println!();
     // a lot of rather busy work to do here,
     // mostly checking master record, connecting to database, etc.
 
@@ -56,17 +54,17 @@ fn main() {
                     if master {
                         error("master record already exists");
                         return;
-                    } else {
-                        match insert_master_password(&mut conn, args.master_password.as_bytes()) {
-                            Ok(_) => {
-                                success("created new master record");
-                            }
-                            Err(_) => {
-                                error("error creating new master password");
-                            }
-                        }
-                        return;
                     }
+
+                    match insert_master_password(&mut conn, args.master_password.as_bytes()) {
+                        Ok(_) => {
+                            success("created new master record");
+                        }
+                        Err(_) => {
+                            error("error creating new master password");
+                        }
+                    }
+                    return;
                 }
             }
         }
@@ -104,7 +102,7 @@ fn main() {
     }
 
     success("authenticated using master record");
-    println!("");
+    println!();
     // a lot of checks and authentication is finall done,
     // now we have to get to actually doing the command the user wants
 
@@ -119,7 +117,7 @@ fn main() {
             checking("password name is available?");
             match check_password_exists(&mut conn, name.as_str()) {
                 Ok(master) => {
-                    if master == true {
+                    if master {
                         error("password with this name already exists \n\t modify or delete existing password instead");
                         return;
                     }
@@ -157,7 +155,7 @@ fn main() {
                 Ok(v) => match v {
                     Some(found_password) => {
                         success("found a password");
-                        println!("");
+                        println!();
                         print_pass(found_password);
                     }
                     None => {
@@ -169,6 +167,7 @@ fn main() {
         }
         PasswordCommands::Update {
             name,
+            new_name,
             username,
             email,
             password_type,
@@ -181,17 +180,20 @@ fn main() {
                 },
                 None => None,
             };
-            let form = PasswordForm {
-                name: Some(&name),
-                username: username.as_deref(),
-                email: email.as_deref(),
-                pass: new_pass.as_deref(),
-                notes: notes.as_deref(),
-                aes_nonce: &name,
-            };
-            match update_password(&mut conn, &name, form) {
-                Ok(_) => success("updated password"),
-                Err(_) => error("error updating password"),
+            match encrypt_and_update(
+                &mut conn,
+                &args.master_password,
+                &name,
+                new_name,
+                username,
+                email,
+                new_pass,
+                notes,
+            ) {
+                Ok(_) => {
+                    success("updated password");
+                }
+                Err(_) => error("there was an issue updating the password"),
             }
         }
         PasswordCommands::List => match get_all(&mut conn) {
@@ -207,7 +209,6 @@ fn main() {
             }
         },
     }
-    println!("");
 }
 
 #[test]
