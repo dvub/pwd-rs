@@ -1,4 +1,7 @@
 // blehhhh
+
+use std::error::Error;
+
 use aes_gcm::{
     aead::{
         consts::{B0, B1},
@@ -13,6 +16,7 @@ use sha2::{
     digest::typenum::{UInt, UTerm},
     Digest, Sha256,
 };
+
 /// Hashes `text` using `Sha256`.
 pub fn hash(
     text: &[u8],
@@ -53,23 +57,24 @@ pub fn encrypt(
     data: Option<impl AsRef<[u8]>>, // this function should not even take in an optional parameter
     aes_nonce: impl AsRef<[u8]>,
     kdf_salt: impl AsRef<[u8]>,
-) -> Option<String> {
+) -> Result<std::option::Option<String>, Box<dyn Error>> {
     //
     let derived_key = derive_key(master_password, kdf_salt);
 
     let key = Key::<Aes256Gcm>::from_slice(&derived_key);
     let cipher = Aes256Gcm::new(key);
+
     // same thing with not dealing with options
     match data {
         Some(val) => {
             // this error should be propagated
-            let encrypted = cipher
-                .encrypt(GenericArray::from_slice(aes_nonce.as_ref()), val.as_ref())
-                .expect("Error encrypting!");
+            match cipher.encrypt(GenericArray::from_slice(aes_nonce.as_ref()), val.as_ref()) {
+                Ok(encrypted) => Ok(Some(hex::encode(encrypted))),
+                Err(_) => todo!(),
+            }
             // encoding should not really take place here
-            Some(hex::encode(encrypted))
         }
-        None => None,
+        None => Ok(None),
     }
 }
 pub fn decrypt(
@@ -103,24 +108,12 @@ pub fn decrypt(
 /// generates a password given a length using randomness from the OS
 pub fn generate_password(length: usize) -> String {
     let characters: Vec<char> = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()~`-=_+[]{}\\|;':\",.<>/?".chars().collect();
-    let len = characters.len();
-    let mut str = String::new();
-    for _ in 0..length {
-        let index = OsRng.gen_range(0..len);
-        str.push(*characters.get(index).expect("error indexing character vec"));
-    }
-    str
-}
-/*
-
-fn generate_password(length: usize) -> String {
-    static charset: Vec<char> = ('A'..='Z').chain('a'..='z').collect();
-    let mut rng = rand::thread_rng();
+    // wouldn't it be lovely if all of my code was this well-written?
+    // this code only looks like this because i didn't write it.
     (0..length)
-        .map(|_| charset[rng.gen_range(0, charset.len())])
+        .map(|_| characters[OsRng.gen_range(0..characters.len())])
         .collect()
 }
-*/
 
 #[cfg(test)]
 mod tests {
@@ -159,7 +152,7 @@ mod tests {
         // encrypt and compare!
         let ciphertext = cipher.encrypt(&nonce, b"data".as_ref()).unwrap();
 
-        assert_eq!(res.unwrap(), hex::encode(ciphertext));
+        assert_eq!(res.unwrap().unwrap(), hex::encode(ciphertext));
     }
     #[test]
     fn decrypt() {

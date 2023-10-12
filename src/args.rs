@@ -46,9 +46,10 @@ pub enum PasswordCommands {
     List,
     /// Updates a password
     Update {
-        /// Password name
+        /// Existing password name to search for
         #[arg(short = 'N', long)]
         name: String,
+        /// Optional new password name to use
         #[arg(long)]
         new_name: Option<String>,
         /// Optional email address

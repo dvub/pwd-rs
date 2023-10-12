@@ -391,7 +391,7 @@ mod tests {
             term,
             Some("tester1".to_string()),
             None,
-            Some("shitpass".to_string()),
+            None,
             None,
         )
         .expect("error inserting password");
@@ -405,7 +405,7 @@ mod tests {
             Some("tester2".to_string()),
             None,
             Some("topsecretpassword".to_string()),
-            None,
+            Some("I ADDED NOTES???".to_string()),
         )
         .unwrap();
         let res = super::read_and_decrypt(&mut conn, master, "efgh").expect("error decrypting");
