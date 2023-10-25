@@ -1,19 +1,13 @@
-pub mod args;
-pub mod console;
-pub mod crypto;
-pub mod models;
-pub mod ops;
-pub mod schema;
-
-use args::PwdArgs;
 use clap::Parser;
-use colored::Colorize;
-use console::{checking, error, success};
-use ops::*;
 
-use crate::args::{PasswordCommands, PasswordTypes};
-use crate::console::print_pass;
-use crate::crypto::generate_password;
+use colored::Colorize;
+use pwd_rs::args::PwdArgs;
+use pwd_rs::console::{checking, error, success};
+use pwd_rs::ops::*;
+
+use pwd_rs::args::{PasswordCommands, PasswordTypes};
+use pwd_rs::console::print_pass;
+use pwd_rs::crypto::generate_password;
 
 fn main() {
     let args = PwdArgs::parse();
@@ -51,7 +45,7 @@ fn main() {
     match master_exists {
         Ok(master) => {
             if let PasswordCommands::Add { ref name, .. } = args.command {
-                if name == ops::MASTER_KEYWORD {
+                if name == MASTER_KEYWORD {
                     if master {
                         error("master record already exists");
                         return;
@@ -108,7 +102,7 @@ fn main() {
     // now we have to get to actually doing the command the user wants
 
     match args.command {
-        args::PasswordCommands::Add {
+        PasswordCommands::Add {
             name,
             email,
             username,
@@ -150,7 +144,7 @@ fn main() {
                 Err(_) => error("there was an error inserting the password"),
             }
         }
-        args::PasswordCommands::Get { name } => {
+        PasswordCommands::Get { name } => {
             let result = read_and_decrypt(&mut conn, &args.master_password, &name);
             match result {
                 Ok(v) => match v {
